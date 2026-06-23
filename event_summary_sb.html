@@ -208,16 +208,16 @@
   <!-- S04 -->
   <div class="desc-list-item" id="list-S04" onclick="activate('S04')" onmouseenter="spot('S04')" onmouseleave="unspot()">
     <span class="desc-list-num">_S04</span>
-    <span class="desc-list-name">이벤트 지표 (탭 + 테이블 + CSV)</span>
+    <span class="desc-list-name">이벤트 지표 (탭 + 테이블 + 원본 데이터 (CSV))</span>
     <span class="desc-list-arrow">›</span>
   </div>
   <div class="desc-detail" id="desc-S04">
     <div class="desc-id">EVENT_SUMMARY_04</div>
-    <div class="desc-name">이벤트 지표 (탭 + 테이블 + CSV 다운로드)</div>
+    <div class="desc-name">이벤트 지표 (탭 + 테이블 + 원본 데이터 (CSV))</div>
     <span class="tag tag-type">조회</span>
-    <span class="tag tag-ui">섹션 헤더(타이틀 + Outline 버튼) + 탭 바 + 데이터 테이블</span>
+    <span class="tag tag-ui">섹션 헤더(타이틀 + Outline 버튼 "원본 데이터 (CSV)") + 탭 바 + 데이터 테이블</span>
     <div class="desc-body">
-      "이벤트 지표" 타이틀과 CSV 다운로드 버튼이 같은 행에 배치(타이틀 좌측, 버튼 우측).
+      "이벤트 지표" 타이틀과 원본 데이터 (CSV) 버튼이 같은 행에 배치(타이틀 좌측, 버튼 우측).
       탭으로 두 가지 뷰를 전환한다.
       <ul>
         <li>
@@ -233,8 +233,13 @@
       </ul>
     </div>
     <div class="warn-block">
-      CSV 다운로드 : 다운로드 시 선택한 기간 필터와 관계없이 이벤트 시작일부터 현재까지 누적된 전체 요약 데이터가 제공됩니다.<br>
-      CSV 파일은 monolake에서 볼 수 있는 파일로 제공됩니다.
+      <b>원본 데이터 (CSV) 버튼 동작 규칙</b><br>
+      화면 필터(기간·유저군 등)와 무관하게 이벤트 <b>전체 기간</b> 데이터를 다운로드한다.<br>
+      이벤트가 진행 중이면 <b>시작일 ~ 오늘</b>까지의 데이터를 다운로드한다.<br>
+      CSV 파일은 monolake에서 볼 수 있는 파일로 제공된다.<br><br>
+      <b>버튼 툴팁</b><br>
+      첫 줄 (항상 표시): "화면 필터와 무관하게 이벤트 전체 기간 데이터를 받습니다."<br>
+      둘째 줄 (진행 중일 때만 추가): "이벤트가 진행 중이면 시작일 ~ 오늘까지 데이터를 받습니다."
     </div>
   </div>
 
@@ -353,14 +358,14 @@
   <!-- D06 -->
   <div class="desc-list-item" id="list-D06" onclick="activate('D06')" onmouseenter="spot('D06')" onmouseleave="unspot()">
     <span class="desc-list-num">_D06</span>
-    <span class="desc-list-name">일별 참여·미참여 유저 수 (접기/펼치기)</span>
+    <span class="desc-list-name">일별 참여·미참여 유저 수 (접기/펼치기 + 원본 데이터 (CSV))</span>
     <span class="desc-list-arrow">›</span>
   </div>
   <div class="desc-detail" id="desc-D06">
     <div class="desc-id">EVENT_DETAIL_06</div>
-    <div class="desc-name">일별 참여·미참여 유저 수 (접기/펼치기 + CSV 내보내기)</div>
+    <div class="desc-name">일별 참여·미참여 유저 수 (접기/펼치기 + 원본 데이터 (CSV))</div>
     <span class="tag tag-type">조회</span>
-    <span class="tag tag-ui">접기/펼치기 헤더 (▶ 아이콘) + 계층형 데이터 테이블 + CSV 내보내기 버튼</span>
+    <span class="tag tag-ui">접기/펼치기 헤더 (▶ 아이콘) + 계층형 데이터 테이블 + 원본 데이터 (CSV) 버튼</span>
     <div class="desc-body">
       날짜 × 유저군 × 레벨군별 일별 참여/미참여/총합계 유저 수 테이블.
       <ul>
@@ -371,26 +376,44 @@
         <li>CSV 파일은 monolake에서 볼 수 있는 파일로 제공됩니다.</li>
       </ul>
     </div>
+    <div class="warn-block">
+      <b>원본 데이터 (CSV) 버튼 동작 규칙</b><br>
+      화면 필터(기간·유저군 등)와 무관하게 이벤트 <b>전체 기간</b> 데이터를 다운로드한다.<br>
+      이벤트가 진행 중이면 <b>시작일 ~ 오늘</b>까지의 데이터를 다운로드한다.<br><br>
+      <b>버튼 툴팁</b><br>
+      첫 줄 (항상 표시): "화면 필터와 무관하게 이벤트 전체 기간 데이터를 받습니다."<br>
+      둘째 줄 (진행 중일 때만 추가): "이벤트가 진행 중이면 시작일 ~ 오늘까지 데이터를 받습니다."
+    </div>
   </div>
 
   <!-- D07 -->
   <div class="desc-list-item" id="list-D07" onclick="activate('D07')" onmouseenter="spot('D07')" onmouseleave="unspot()">
     <span class="desc-list-num">_D07</span>
-    <span class="desc-list-name">참여·미참여 리텐션 비교 (D+1/7/14)</span>
+    <span class="desc-list-name">참여·미참여 리텐션 비교 (D+n 탭)</span>
     <span class="desc-list-arrow">›</span>
   </div>
   <div class="desc-detail" id="desc-D07">
     <div class="desc-id">EVENT_DETAIL_07</div>
-    <div class="desc-name">참여·미참여 리텐션 비교 (D+1 / D+7 / D+14 탭)</div>
+    <div class="desc-name">참여·미참여 리텐션 비교 (D+n 탭)</div>
     <span class="tag tag-type">조회</span>
     <span class="tag tag-ui">D+n 탭 바 + 유저군 × 레벨군 3×3 그리드 (참여/미참여 바 차트 + 차이)</span>
     <div class="desc-body">
       이벤트 참여·미참여 유저의 리텐션을 유저군 × 레벨군별로 비교.
       각 셀: 참여 리텐션 바 · 미참여 리텐션 바 · 차이(%p).
       <ul>
+        <li><b>탭 구성 규칙 (기간 필터 연동):</b> [1, 7, 14, 21, 28] 중 선택 기간 일수 이하의 값만 표시. 데이터 최대 범위 D+28.
+          <ul>
+            <li>7일 이하 → D+1, D+7</li>
+            <li>8~14일 → D+1, D+7</li>
+            <li>15~29일 → D+1, D+7, D+14</li>
+            <li>30일 이상 → D+1, D+7, D+14, D+21, D+28</li>
+          </ul>
+        </li>
         <li><b>D+1</b> — 단기 점착도 (다음 날 즉각 재방문 유도했는가)</li>
         <li><b>D+7</b> — 중기 리텐션 (일주일 단위 습관 형성에 기여했는가)</li>
         <li><b>D+14</b> — 장기 습관화 (이벤트 종료 후에도 효과가 지속되는가)</li>
+        <li><b>D+21</b> — 3주차까지 효과가 이어지는가. 이벤트 후 중장기 잔류 여부</li>
+        <li><b>D+28</b> — 4주(한 달) 시점 리텐션. 이벤트 종료 후 습관 정착 여부</li>
         <li><b>빨간 강조(역전 현상):</b> 참여 리텐션 &lt; 미참여 리텐션 — 이벤트가 오히려 이탈을 유도했을 가능성. 주로 미션 난이도 과도하거나 보상 실망 시 발생</li>
       </ul>
     </div>
@@ -399,21 +422,22 @@
   <!-- D08 -->
   <div class="desc-list-item" id="list-D08" onclick="activate('D08')" onmouseenter="spot('D08')" onmouseleave="unspot()">
     <span class="desc-list-num">_D08</span>
-    <span class="desc-list-name">일별 리텐션 곡선 + 코호트 수치 테이블</span>
+    <span class="desc-list-name">일별 평균 리텐션 곡선 + 코호트 수치 테이블</span>
     <span class="desc-list-arrow">›</span>
   </div>
   <div class="desc-detail" id="desc-D08">
     <div class="desc-id">EVENT_DETAIL_08</div>
-    <div class="desc-name">일별 리텐션 곡선 + 코호트 수치 테이블</div>
+    <div class="desc-name">일별 평균 리텐션 곡선 + 코호트 수치 테이블</div>
     <span class="tag tag-type">조회</span>
     <span class="tag tag-ui">유저군 선택 드롭다운 + 참여/미참여 토글 버튼 + 꺾은선 차트 (Canvas) + 코호트 수치 테이블</span>
     <div class="desc-body">
-      D+00~D+14까지 15개 시점의 리텐션 변화를 꺾은선 차트로 표시.
+      선택 기간 내 날짜 데이터의 D+N 리텐션 단순 평균을 꺾은선 차트로 표시. 표시 시점은 선택 기간 일수에 따라 D+00 ~ D+N(최대 D+14)으로 동적 조정.
       <ul>
         <li><b>유저군 드롭다운 11종:</b> 기존(전체/저/중/고레벨) · 복귀(전체/저/중/고레벨) · 신규(전체/저/중레벨, 고레벨 해당 없음)</li>
         <li><b>참여/미참여 토글</b>로 표시할 라인 제어</li>
         <li>곡선(흐름·급락 지점 파악) + 코호트 테이블(정확한 수치·보고서 참조)을 이중 제공</li>
-        <li>D07이 시점 단면 비교라면, D08은 <b>D+00→D+14 흐름 전체 추적</b></li>
+        <li>D07이 시점 단면 비교라면, D08은 <b>D+00→D+N 흐름 전체 추적</b></li>
+        <li>D+N 컬럼 수는 기간 필터에 따라 자동 조정, 테이블 넓어지면 가로 스크롤</li>
       </ul>
     </div>
   </div>
@@ -421,14 +445,14 @@
   <!-- D09 -->
   <div class="desc-list-item" id="list-D09" onclick="activate('D09')" onmouseenter="spot('D09')" onmouseleave="unspot()">
     <span class="desc-list-num">_D09</span>
-    <span class="desc-list-name">유저군×레벨군별 일별 리텐션 (접기/펼치기)</span>
+    <span class="desc-list-name">유저군×레벨군별 일별 리텐션 (접기/펼치기 + 원본 데이터 (CSV))</span>
     <span class="desc-list-arrow">›</span>
   </div>
   <div class="desc-detail" id="desc-D09">
     <div class="desc-id">EVENT_DETAIL_09</div>
-    <div class="desc-name">유저군 × 레벨군별 참여·미참여 유저의 일별 리텐션 (접기/펼치기 + CSV)</div>
+    <div class="desc-name">유저군 × 레벨군별 참여·미참여 유저의 일별 리텐션 (접기/펼치기 + 원본 데이터 (CSV))</div>
     <span class="tag tag-type">조회</span>
-    <span class="tag tag-ui">접기/펼치기 헤더 + 참여여부 셀렉트 + 계층형 데이터 테이블 + 날짜 정렬 + CSV 내보내기 버튼</span>
+    <span class="tag tag-ui">접기/펼치기 헤더 + 참여여부 셀렉트 + 계층형 데이터 테이블 + 날짜 정렬 + 원본 데이터 (CSV) 버튼</span>
     <div class="desc-body">
       유저군 × 레벨군 × 날짜별 D+00~D+14 리텐션 테이블.
       <ul>
@@ -438,6 +462,45 @@
         <li><b>날짜 정렬:</b> 컬럼 클릭 시 오름/내림차순 전환 (기본: 내림차순)</li>
         <li><b>기본 상태: 접힘.</b> CSV 파일명: <code>event-daily-ret-{참여|미참여}.csv</code></li>
         <li><b>CSV 파일 제공:</b> monolake에서 볼 수 있는 파일로 제공됩니다.</li>
+      </ul>
+    </div>
+    <div class="warn-block">
+      <b>원본 데이터 (CSV) 버튼 동작 규칙</b><br>
+      화면 필터(기간·유저군 등)와 무관하게 이벤트 <b>전체 기간</b> 데이터를 다운로드한다.<br>
+      이벤트가 진행 중이면 <b>시작일 ~ 오늘</b>까지의 데이터를 다운로드한다.<br><br>
+      <b>버튼 툴팁</b><br>
+      첫 줄 (항상 표시): "화면 필터와 무관하게 이벤트 전체 기간 데이터를 받습니다."<br>
+      둘째 줄 (진행 중일 때만 추가): "이벤트가 진행 중이면 시작일 ~ 오늘까지 데이터를 받습니다."
+    </div>
+  </div>
+
+
+  <!-- D10 -->
+  <div class="desc-list-item" id="list-D10" onclick="activate('D10')" onmouseenter="spot('D10')" onmouseleave="unspot()">
+    <span class="desc-list-num">_D10</span>
+    <span class="desc-list-name">기간 설정 필터</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-D10">
+    <div class="desc-id">EVENT_DETAIL_10</div>
+    <div class="desc-name">기간 설정 필터</div>
+    <span class="tag tag-type">조회 (필터)</span>
+    <span class="tag tag-ui">드롭다운 버튼 + 옵션 목록 + 날짜 입력행 (사용자 지정 시 노출) + 기간 표시 텍스트</span>
+    <div class="desc-body">
+      이벤트 정보 카드 하단, 참여/리텐션 섹션 상단에 위치. 드롭다운 선택 즉시 페이지 내 모든 지표가 갱신된다.
+      <ul>
+        <li><b>전체</b> — 이벤트 시작일 ~ 종료일</li>
+        <li><b>7일</b> — 오늘 기준 최근 7일, 이벤트 기간 내로 클램핑</li>
+        <li><b>14일</b> — 오늘 기준 최근 14일, 이벤트 기간 내로 클램핑</li>
+        <li><b>사용자 지정</b> — 날짜 입력행 노출, 시작일·종료일 입력 후 [적용] 클릭 시 반영. 선택 범위는 이벤트 기간 내로 제한</li>
+        <li>현재 적용 기간은 <code>YY.MM.DD ~ YY.MM.DD · N일</code> 형식으로 우측에 항시 표시</li>
+      </ul>
+      <b>연동 지표:</b>
+      <ul>
+        <li>유저군별 참여율 KPI / 참여율 테이블 — 선택 기간 데이터로 스케일</li>
+        <li>참여·미참여 리텐션 D+n 탭 — 기간 내 데이터 평균 + D+n 탭 구성 동적 변경</li>
+        <li>일별 평균 리텐션 곡선 — 기간 내 단순 평균, D+N 컬럼 수 동적 조정</li>
+        <li>일별 참여·미참여 유저 수 / 일별 리텐션 테이블 — 기간 내 날짜 행만 표시</li>
       </ul>
     </div>
   </div>
@@ -464,7 +527,8 @@ var IFRAME_MAP = {
   'D06': { page: 'page-detail', sel: '#card-1-3-raw-table' },
   'D07': { page: 'page-detail', sel: '#card-2-1-retention-hero' },
   'D08': { page: 'page-detail', sel: '#card-2-2-retention-curve' },
-  'D09': { page: 'page-detail', sel: '#card-2-3-daily-ret' }
+  'D09': { page: 'page-detail', sel: '#card-2-3-daily-ret' },
+  'D10': { page: 'page-detail', sel: '#detail-period-filter' }
 };
 
 /* ── proto로 메시지 전송 ── */
