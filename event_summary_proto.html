@@ -198,6 +198,10 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
 #page-detail .collapsible-body.open { display: block; }
 #page-detail .export-btn { border: 1px solid #CBD5E1; border-radius: 6px; padding: 5px 12px; font-size: 12px; cursor: pointer; background: #F8FAFC; color: #475569; float: right; margin-bottom: 8px; }
 #page-detail .export-btn:hover { background: #E2E8F0; }
+.csv-tip-wrap { position: relative; display: inline-flex; }
+.csv-tip { display: none; position: absolute; bottom: calc(100% + 8px); right: 0; background: #1E293B; color: #fff; font-size: 11px; line-height: 1.7; padding: 8px 12px; border-radius: 6px; white-space: nowrap; z-index: 100; pointer-events: none; text-align: left; }
+.csv-tip::after { content: ''; position: absolute; top: 100%; right: 14px; border: 5px solid transparent; border-top-color: #1E293B; }
+.csv-tip-wrap:hover .csv-tip { display: block; }
 #page-detail .daily-ret-header { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 0 10px; border-bottom: 1px solid #E2E8F0; margin-bottom: 0; user-select: none; }
 #page-detail .daily-ret-header .dr-arrow { font-size: 12px; color: #94A3B8; transition: transform .2s; flex-shrink: 0; }
 #page-detail .daily-ret-header.open .dr-arrow { transform: rotate(90deg); }
@@ -209,6 +213,48 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
 #page-detail .legend-line { width: 16px; height: 3px; border-radius: 2px; flex-shrink: 0; }
 #page-detail .legend-dashed { background: repeating-linear-gradient(90deg,#94A3B8 0 4px,transparent 4px 7px); }
 #page-detail .info-note { background: #EFF6FF; border-left: 3px solid #3B82F6; border-radius: 0 6px 6px 0; padding: 8px 12px; font-size: 11px; color: #1E40AF; margin-bottom: 12px; }
+
+/* ── DETAIL PERIOD FILTER ── */
+#detail-period-filter {
+  background: #fff; border-radius: 8px; border: 1px solid #e6e6e4;
+  padding: 14px 20px; margin-bottom: 28px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+#detail-period-filter .filter-label { font-size: 12px; font-weight: 600; color: #475569; white-space: nowrap; }
+#detail-period-filter .d-date-filter-wrap { position: relative; }
+#detail-period-filter .d-date-select-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 6px; font-size: 12px;
+  border: 1px solid #d8d8d6; background: #fff;
+  color: #333; cursor: pointer; transition: border-color 0.12s; white-space: nowrap;
+}
+#detail-period-filter .d-date-select-btn:hover { border-color: #aaa; }
+#detail-period-filter .d-date-dropdown {
+  display: none; position: absolute; left: 0; top: calc(100% + 4px); z-index: 20;
+  background: #fff; border: 1px solid #ddd; border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.10); min-width: 140px; overflow: hidden;
+}
+#detail-period-filter .d-date-dropdown.open { display: block; }
+#detail-period-filter .d-dropdown-item { padding: 9px 16px; font-size: 13px; color: #333; cursor: pointer; transition: background 0.1s; }
+#detail-period-filter .d-dropdown-item:hover { background: #f5f5f5; }
+#detail-period-filter .d-dropdown-item.active { color: #4b5cf0; font-weight: 500; background: #f5f6fe; }
+#detail-period-filter .d-date-input-row {
+  display: none; align-items: center; gap: 8px;
+}
+#detail-period-filter .d-date-input-row.open { display: flex; }
+#detail-period-filter .d-date-input-row input[type=date] {
+  font-size: 12px; padding: 5px 8px; border-radius: 6px;
+  border: 1px solid #d0d0d0; background: #fff; color: #222;
+}
+#detail-period-filter .d-date-input-row span { font-size: 12px; color: #999; }
+#detail-period-filter .btn-filter-apply {
+  padding: 5px 16px; border-radius: 6px; font-size: 12px;
+  background: #4b5cf0; color: #fff; border: none; cursor: pointer;
+}
+#detail-period-filter .btn-filter-apply:hover { background: #3a4bde; }
+#detail-period-filter .filter-range-display {
+  margin-left: auto; font-size: 11px; color: #94a3b8; white-space: nowrap;
+}
 
 @media (max-width: 900px) {
   #page-detail .card-grid-4 { grid-template-columns: repeat(2,1fr); }
@@ -249,7 +295,7 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
                 <path d="M1 5.5h12M4.5 1v3M9.5 1v3"/>
               </svg>
             </span>
-            <span>2026. 06. 11 ~ 2026. 06. 29</span>
+            <span>2026. 06. 11 ~ 2026. 07. 10</span>
           </div>
           <div class="event-meta-item">
             <span class="meta-icon">
@@ -310,12 +356,15 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
   <div class="card" style="padding:24px 0 0;">
     <div style="padding:0 28px 16px;display:flex;align-items:center;justify-content:space-between;">
       <span style="font-size:14px;font-weight:600;color:#1a1a1a;">이벤트 지표</span>
-      <button class="btn-outline" onclick="alert('이벤트 지표 CSV 다운로드')">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-          <path d="M8 2v8M5 7l3 3 3-3M3 12h10"/>
-        </svg>
-        CSV 다운로드
-      </button>
+      <div class="csv-tip-wrap">
+        <button class="btn-outline" onclick="alert('이벤트 지표 CSV 다운로드')">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" style="flex-shrink:0">
+            <path d="M8 2v8M5 7l3 3 3-3M3 13h10"/>
+          </svg>
+          원본 데이터 (CSV)
+        </button>
+        <span class="csv-tip"></span>
+      </div>
     </div>
     <div class="tab-bar" style="padding:0 28px;">
       <div class="tab active" id="tab-btn-tab1" onclick="activateTab('tab1')">이벤트 유입 현황</div>
@@ -379,7 +428,7 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
       <div style="display:flex;align-items:center;gap:14px;font-size:12px;color:#888;">
         <span style="display:flex;align-items:center;gap:5px;">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#aaa" stroke-width="1.3"><rect x="1" y="2" width="12" height="11" rx="2"/><path d="M1 5.5h12M4.5 1v3M9.5 1v3"/></svg>
-          2026. 06. 11 ~ 2026. 06. 29
+          2026. 06. 11 ~ 2026. 07. 10
         </span>
         <span style="display:flex;align-items:center;gap:5px;">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#aaa" stroke-width="1.3"><rect x="1" y="2.5" width="12" height="9" rx="2"/><circle cx="4.5" cy="6.5" r="1.5"/><path d="M7.5 6h3M7.5 8.5h3"/></svg>
@@ -387,6 +436,32 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
         </span>
       </div>
     </div>
+  </div>
+
+  <!-- 기간 필터 -->
+  <div id="detail-period-filter">
+    <span class="filter-label">기간</span>
+    <div class="d-date-filter-wrap">
+      <button class="d-date-select-btn" id="dDateSelectBtn" onclick="toggleDetailDropdown()">
+        <span id="dDateSelectLabel">전체</span>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#888" stroke-width="1.5">
+          <path d="M2 3.5l3 3 3-3"/>
+        </svg>
+      </button>
+      <div class="d-date-dropdown" id="dDateDropdown">
+        <div class="d-dropdown-item active" id="dopt-all"    onclick="selectDetailRange('all')">전체</div>
+        <div class="d-dropdown-item"        id="dopt-7d"     onclick="selectDetailRange('7d')">7일</div>
+        <div class="d-dropdown-item"        id="dopt-14d"    onclick="selectDetailRange('14d')">14일</div>
+        <div class="d-dropdown-item"        id="dopt-custom" onclick="selectDetailRange('custom')">사용자 지정</div>
+      </div>
+    </div>
+    <div class="d-date-input-row" id="dDateInputRow">
+      <input type="date" id="detail-start-date" value="2026-06-11" min="2026-06-11" max="2026-07-10">
+      <span>~</span>
+      <input type="date" id="detail-end-date" value="2026-07-10" min="2026-06-11" max="2026-07-10">
+      <button class="btn-filter-apply" onclick="applyDetailFilter()">적용</button>
+    </div>
+    <span class="filter-range-display" id="detail-range-display">2026.06.11 ~ 2026.07.10 · 30일</span>
   </div>
 
   <!-- SECTION 1: 참여 -->
@@ -480,7 +555,7 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
         <span class="dr-arrow">▶</span>
         <span style="font-size:13px;font-weight:700;color:#1E293B">일별 참여·미참여 유저 수</span>
         <div style="margin-left:auto" onclick="event.stopPropagation()">
-          <button id="csv-btn" class="export-btn" style="float:none;margin:0">CSV 내보내기</button>
+          <div class="csv-tip-wrap"><button id="csv-btn" class="export-btn" style="float:none;margin:0"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" width="13" height="13" style="flex-shrink:0;vertical-align:middle;margin-right:4px"><path d="M8 2v8M5 7l3 3 3-3M3 13h10"/></svg>원본 데이터 (CSV)</button><span class="csv-tip"></span></div>
         </div>
       </div>
       <div class="daily-ret-body" id="raw-body" style="height:1000px;display:none;flex-direction:column">
@@ -507,16 +582,12 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
     <div id="card-2-1-retention-hero" class="card" style="margin-bottom:20px">
       <div class="card-title">참여 · 미참여 리텐션 비교</div>
       <div class="hero-body">
-        <div class="day-tabs">
-          <div class="day-tab active" data-d="d1">D+1</div>
-          <div class="day-tab" data-d="d7">D+7</div>
-          <div class="day-tab" data-d="d14">D+14</div>
-        </div>
+        <div class="day-tabs" id="day-tabs-container"></div>
         <div id="ret-grid-container"></div>
       </div>
     </div>
     <div id="card-2-2-retention-curve" class="card">
-      <div class="card-title">일별 리텐션 곡선 (D+00 ~ D+14)</div>
+      <div class="card-title">일별 평균 리텐션 곡선</div>
       <div class="curve-controls">
         <label>유저군</label>
         <select id="curve-ug">
@@ -541,8 +612,8 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
         <canvas id="curve-chart"></canvas>
       </div>
       <div id="block-2-2-cohort-table" style="margin-top:16px">
-        <div class="tbl-wrap">
-          <table class="cohort-table" id="t-cohort">
+        <div class="tbl-wrap" style="overflow-x:auto">
+          <table class="cohort-table" id="t-cohort" style="min-width:max-content;width:100%">
             <thead id="t-cohort-head"></thead>
             <tbody id="t-cohort-body"></tbody>
           </table>
@@ -559,7 +630,7 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
             <option value="part">참여</option>
             <option value="nonpart">미참여</option>
           </select>
-          <button id="daily-ret-csv-btn" class="export-btn" style="float:none;margin:0">CSV 내보내기</button>
+          <div class="csv-tip-wrap"><button id="daily-ret-csv-btn" class="export-btn" style="float:none;margin:0"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" width="13" height="13" style="flex-shrink:0;vertical-align:middle;margin-right:4px"><path d="M8 2v8M5 7l3 3 3-3M3 13h10"/></svg>원본 데이터 (CSV)</button><span class="csv-tip"></span></div>
         </div>
       </div>
       <div class="daily-ret-body" id="daily-ret-body" style="height:1000px;display:none;flex-direction:column">
@@ -592,7 +663,7 @@ function showPage(id) {
     if (!detailInitialized) {
       detailInitialized = true;
       buildPartTable();
-      buildRetGrid('d1');
+      rebuildDayTabs();
       buildRaw();
       buildCurve();
       buildDailyRet();
@@ -606,7 +677,7 @@ function showPage(id) {
 // REPORT: Mock 데이터
 // ══════════════════════════════════════════
 const EVENT_START = '2026-06-11';
-const EVENT_END   = '2026-06-29';
+const EVENT_END   = '2026-07-10';
 
 const MISSION_TYPES = [
   '누적 1일 로그인','AP 5,000 사용','학원교류회\n10회 클리어',
@@ -805,19 +876,21 @@ const PART_DATA = [
   { ug:'03. 신규', lv:'03. 고레벨(71~90)',part:0,      nopart:0,      total:0,      rate:0.0  },
 ];
 
+
 const DAILY_RET_DATA = (function(){
   const UGS=['01. 기존','02. 복귀','03. 신규'];
   const LVS=['01. 저레벨(1~40Lv)','02. 중레벨(41~70Lv)','03. 고레벨(71~90Lv)'];
-  const DATES=['2025-12-16(화)','2025-12-17(수)','2025-12-18(목)','2025-12-19(금)','2025-12-20(토)','2025-12-21(일)','2025-12-22(월)'];
+  const _DOW=['일','월','화','수','목','금','토'];
+  const DATES=Array.from({length:30},(_,i)=>{const d=new Date(2026,5,11+i);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}(${_DOW[d.getDay()]})`;});
   const BASE_PART={
-    '01. 기존':{'01. 저레벨(1~40Lv)':[100,64.7,60.1,56.2,53.0,50.4,48.0,46.0,43.6,41.8,40.2,38.9,37.8,36.8,36.0],'02. 중레벨(41~70Lv)':[100,72.1,66.8,62.3,59.0,55.8,53.2,50.5,48.1,46.0,44.0,42.4,41.0,39.8,38.6],'03. 고레벨(71~90Lv)':[100,79.5,73.4,68.9,65.3,62.0,59.4,56.9,54.5,52.3,50.4,48.6,47.0,45.5,44.0]},
-    '02. 복귀':{'01. 저레벨(1~40Lv)':[100,55.2,49.8,45.1,41.3,38.2,35.5,33.1,31.0,29.2,27.6,26.2,24.9,23.8,22.8],'02. 중레벨(41~70Lv)':[100,63.4,57.5,52.5,48.5,44.9,41.8,39.1,36.7,34.5,32.6,30.9,29.4,28.0,26.7],'03. 고레벨(71~90Lv)':[100,71.2,65.0,59.5,55.0,51.1,47.6,44.5,41.7,39.2,37.0,35.1,33.3,31.7,30.2]},
-    '03. 신규':{'01. 저레벨(1~40Lv)':[100,48.5,42.0,37.0,33.0,29.8,27.0,24.7,22.7,21.0,19.5,18.2,17.0,16.0,15.1],'02. 중레벨(41~70Lv)':[100,56.0,49.5,44.0,39.7,36.1,33.0,30.3,28.0,25.9,24.1,22.5,21.1,19.8,18.7],'03. 고레벨(71~90Lv)':[100,64.0,57.5,51.8,47.0,43.0,39.5,36.5,33.9,31.5,29.4,27.6,25.9,24.4,23.0]},
+    '01. 기존':{'01. 저레벨(1~40Lv)':[100,64.7,60.1,56.2,53.0,50.4,48.0,46.0,43.6,41.8,40.2,38.9,37.8,36.8,36.0,35.2,34.5,33.9,33.2,32.6,32.0,31.5,30.9,30.4,29.9,29.4,28.9,28.5,28.0],'02. 중레벨(41~70Lv)':[100,72.1,66.8,62.3,59.0,55.8,53.2,50.5,48.1,46.0,44.0,42.4,41.0,39.8,38.6,37.8,37.1,36.4,35.7,35.0,34.3,33.7,33.1,32.4,31.8,31.3,30.7,30.1,29.6],'03. 고레벨(71~90Lv)':[100,79.5,73.4,68.9,65.3,62.0,59.4,56.9,54.5,52.3,50.4,48.6,47.0,45.5,44.0,43.1,42.2,41.4,40.6,39.8,39.0,38.3,37.5,36.8,36.1,35.4,34.7,34.1,33.4]},
+    '02. 복귀':{'01. 저레벨(1~40Lv)':[100,55.2,49.8,45.1,41.3,38.2,35.5,33.1,31.0,29.2,27.6,26.2,24.9,23.8,22.8,21.9,21.0,20.2,19.4,18.6,17.9,17.1,16.4,15.8,15.1,14.5,13.9,13.4,12.8],'02. 중레벨(41~70Lv)':[100,63.4,57.5,52.5,48.5,44.9,41.8,39.1,36.7,34.5,32.6,30.9,29.4,28.0,26.7,25.7,24.7,23.7,22.8,21.9,21.1,20.3,19.5,18.8,18.1,17.4,16.7,16.1,15.5],'03. 고레벨(71~90Lv)':[100,71.2,65.0,59.5,55.0,51.1,47.6,44.5,41.7,39.2,37.0,35.1,33.3,31.7,30.2,29.1,28.0,26.9,25.9,24.9,24.0,23.1,22.2,21.4,20.6,19.8,19.1,18.4,17.7]},
+    '03. 신규':{'01. 저레벨(1~40Lv)':[100,48.5,42.0,37.0,33.0,29.8,27.0,24.7,22.7,21.0,19.5,18.2,17.0,16.0,15.1,14.2,13.3,12.5,11.7,11.0,10.3,9.7,9.1,8.5,8.0,7.5,7.1,6.6,6.2],'02. 중레벨(41~70Lv)':[100,56.0,49.5,44.0,39.7,36.1,33.0,30.3,28.0,25.9,24.1,22.5,21.1,19.8,18.7,17.6,16.6,15.7,14.8,14.0,13.2,12.5,11.8,11.1,10.5,9.9,9.4,8.8,8.3],'03. 고레벨(71~90Lv)':[100,64.0,57.5,51.8,47.0,43.0,39.5,36.5,33.9,31.5,29.4,27.6,25.9,24.4,23.0,21.8,20.7,19.6,18.6,17.7,16.8,15.9,15.1,14.4,13.6,12.9,12.3,11.6,11.0]},
   };
   const BASE_NONPART={
-    '01. 기존':{'01. 저레벨(1~40Lv)':[100,22.1,14.5,10.5,8.3,7.0,6.1,5.4,4.9,4.4,4.1,3.8,3.5,3.3,3.1],'02. 중레벨(41~70Lv)':[100,25.3,16.8,12.2,9.7,8.2,7.1,6.3,5.7,5.2,4.8,4.4,4.1,3.9,3.6],'03. 고레벨(71~90Lv)':[100,30.1,20.5,15.0,11.9,10.0,8.7,7.8,7.0,6.4,5.9,5.5,5.1,4.8,4.5]},
-    '02. 복귀':{'01. 저레벨(1~40Lv)':[100,18.5,12.0,8.8,7.0,5.9,5.1,4.5,4.1,3.7,3.4,3.2,2.9,2.7,2.6],'02. 중레벨(41~70Lv)':[100,21.2,14.0,10.3,8.2,6.9,6.0,5.3,4.8,4.3,4.0,3.7,3.4,3.2,3.0],'03. 고레벨(71~90Lv)':[100,26.0,17.5,12.9,10.3,8.7,7.5,6.7,6.0,5.5,5.0,4.7,4.3,4.1,3.8]},
-    '03. 신규':{'01. 저레벨(1~40Lv)':[100,15.0,9.5,6.9,5.5,4.7,4.0,3.6,3.2,2.9,2.7,2.5,2.3,2.1,2.0],'02. 중레벨(41~70Lv)':[100,17.5,11.2,8.2,6.5,5.5,4.8,4.2,3.8,3.4,3.2,2.9,2.7,2.5,2.4],'03. 고레벨(71~90Lv)':[100,21.0,13.8,10.2,8.1,6.8,5.9,5.2,4.7,4.3,3.9,3.6,3.4,3.1,2.9]},
+    '01. 기존':{'01. 저레벨(1~40Lv)':[100,22.1,14.5,10.5,8.3,7.0,6.1,5.4,4.9,4.4,4.1,3.8,3.5,3.3,3.1,3.0,2.9,2.9,2.8,2.8,2.7,2.7,2.6,2.6,2.5,2.5,2.5,2.4,2.4],'02. 중레벨(41~70Lv)':[100,25.3,16.8,12.2,9.7,8.2,7.1,6.3,5.7,5.2,4.8,4.4,4.1,3.9,3.6,3.5,3.4,3.3,3.3,3.2,3.1,3.1,3.0,2.9,2.9,2.8,2.8,2.7,2.7],'03. 고레벨(71~90Lv)':[100,30.1,20.5,15.0,11.9,10.0,8.7,7.8,7.0,6.4,5.9,5.5,5.1,4.8,4.5,4.4,4.3,4.2,4.1,4.0,3.9,3.8,3.7,3.7,3.6,3.5,3.5,3.4,3.4]},
+    '02. 복귀':{'01. 저레벨(1~40Lv)':[100,18.5,12.0,8.8,7.0,5.9,5.1,4.5,4.1,3.7,3.4,3.2,2.9,2.7,2.6,2.5,2.4,2.4,2.3,2.3,2.2,2.2,2.1,2.1,2.0,2.0,1.9,1.9,1.9],'02. 중레벨(41~70Lv)':[100,21.2,14.0,10.3,8.2,6.9,6.0,5.3,4.8,4.3,4.0,3.7,3.4,3.2,3.0,2.9,2.8,2.8,2.7,2.7,2.6,2.6,2.5,2.5,2.4,2.4,2.4,2.3,2.3],'03. 고레벨(71~90Lv)':[100,26.0,17.5,12.9,10.3,8.7,7.5,6.7,6.0,5.5,5.0,4.7,4.3,4.1,3.8,3.7,3.6,3.5,3.5,3.4,3.3,3.3,3.2,3.1,3.1,3.0,3.0,2.9,2.9]},
+    '03. 신규':{'01. 저레벨(1~40Lv)':[100,15.0,9.5,6.9,5.5,4.7,4.0,3.6,3.2,2.9,2.7,2.5,2.3,2.1,2.0,1.9,1.9,1.8,1.8,1.8,1.7,1.7,1.6,1.6,1.6,1.5,1.5,1.5,1.5],'02. 중레벨(41~70Lv)':[100,17.5,11.2,8.2,6.5,5.5,4.8,4.2,3.8,3.4,3.2,2.9,2.7,2.5,2.4,2.3,2.3,2.2,2.2,2.2,2.1,2.1,2.0,2.0,2.0,1.9,1.9,1.9,1.8],'03. 고레벨(71~90Lv)':[100,21.0,13.8,10.2,8.1,6.8,5.9,5.2,4.7,4.3,3.9,3.6,3.4,3.1,2.9,2.8,2.8,2.7,2.7,2.6,2.6,2.5,2.5,2.4,2.4,2.4,2.3,2.3,2.3]},
   };
   const BASE_USERS={'01. 기존':{'01. 저레벨(1~40Lv)':3200,'02. 중레벨(41~70Lv)':8500,'03. 고레벨(71~90Lv)':35000},'02. 복귀':{'01. 저레벨(1~40Lv)':1200,'02. 중레벨(41~70Lv)':2800,'03. 고레벨(71~90Lv)':5500},'03. 신규':{'01. 저레벨(1~40Lv)':900,'02. 중레벨(41~70Lv)':1800,'03. 고레벨(71~90Lv)':2200}};
   const rnd=(v,d=2)=>parseFloat((v+(Math.random()-0.5)*d).toFixed(1));
@@ -829,56 +902,38 @@ const DAILY_RET_DATA = (function(){
   return rows;
 })();
 
-const RAW_DATA=[
-  {date:'2025-12-16(화)',ug:'01. 기존',lv:'저레벨',part:6707,nopart:3098,total:9805},
-  {date:'2025-12-16(화)',ug:'01. 기존',lv:'중레벨',part:29795,nopart:3809,total:33604},
-  {date:'2025-12-16(화)',ug:'01. 기존',lv:'고레벨',part:226584,nopart:10276,total:236860},
-  {date:'2025-12-16(화)',ug:'02. 복귀',lv:'저레벨',part:1333,nopart:2118,total:3451},
-  {date:'2025-12-16(화)',ug:'02. 복귀',lv:'중레벨',part:3395,nopart:1257,total:4652},
-  {date:'2025-12-16(화)',ug:'02. 복귀',lv:'고레벨',part:6760,nopart:1433,total:8193},
-  {date:'2025-12-16(화)',ug:'03. 신규',lv:'저레벨',part:986,nopart:2739,total:3725},
-  {date:'2025-12-17(수)',ug:'01. 기존',lv:'저레벨',part:8887,nopart:3872,total:12759},
-  {date:'2025-12-17(수)',ug:'01. 기존',lv:'중레벨',part:35951,nopart:4799,total:40750},
-  {date:'2025-12-17(수)',ug:'01. 기존',lv:'고레벨',part:240874,nopart:11510,total:252384},
-  {date:'2025-12-17(수)',ug:'02. 복귀',lv:'저레벨',part:1850,nopart:3021,total:4871},
-  {date:'2025-12-17(수)',ug:'02. 복귀',lv:'중레벨',part:4200,nopart:1715,total:5915},
-  {date:'2025-12-17(수)',ug:'03. 신규',lv:'저레벨',part:1102,nopart:3054,total:4156},
-  {date:'2025-12-18(목)',ug:'01. 기존',lv:'저레벨',part:7543,nopart:3214,total:10757},
-  {date:'2025-12-18(목)',ug:'01. 기존',lv:'중레벨',part:31204,nopart:4102,total:35306},
-  {date:'2025-12-18(목)',ug:'01. 기존',lv:'고레벨',part:233901,nopart:10843,total:244744},
-  {date:'2025-12-18(목)',ug:'02. 복귀',lv:'저레벨',part:1568,nopart:2641,total:4209},
-  {date:'2025-12-18(목)',ug:'02. 복귀',lv:'중레벨',part:3801,nopart:1489,total:5290},
-  {date:'2025-12-18(목)',ug:'02. 복귀',lv:'고레벨',part:7203,nopart:1582,total:8785},
-  {date:'2025-12-18(목)',ug:'03. 신규',lv:'저레벨',part:1045,nopart:2901,total:3946},
-  {date:'2025-12-19(금)',ug:'01. 기존',lv:'저레벨',part:9124,nopart:3541,total:12665},
-  {date:'2025-12-19(금)',ug:'01. 기존',lv:'중레벨',part:37280,nopart:4632,total:41912},
-  {date:'2025-12-19(금)',ug:'01. 기존',lv:'고레벨',part:248103,nopart:11204,total:259307},
-  {date:'2025-12-19(금)',ug:'02. 복귀',lv:'저레벨',part:1921,nopart:2854,total:4775},
-  {date:'2025-12-19(금)',ug:'02. 복귀',lv:'중레벨',part:4387,nopart:1623,total:6010},
-  {date:'2025-12-19(금)',ug:'02. 복귀',lv:'고레벨',part:7512,nopart:1498,total:9010},
-  {date:'2025-12-19(금)',ug:'03. 신규',lv:'저레벨',part:1188,nopart:2773,total:3961},
-  {date:'2025-12-20(토)',ug:'01. 기존',lv:'저레벨',part:11053,nopart:3870,total:14923},
-  {date:'2025-12-20(토)',ug:'01. 기존',lv:'중레벨',part:42610,nopart:4901,total:47511},
-  {date:'2025-12-20(토)',ug:'01. 기존',lv:'고레벨',part:261447,nopart:11893,total:273340},
-  {date:'2025-12-20(토)',ug:'02. 복귀',lv:'저레벨',part:2304,nopart:2991,total:5295},
-  {date:'2025-12-20(토)',ug:'02. 복귀',lv:'중레벨',part:5021,nopart:1748,total:6769},
-  {date:'2025-12-20(토)',ug:'02. 복귀',lv:'고레벨',part:8234,nopart:1612,total:9846},
-  {date:'2025-12-20(토)',ug:'03. 신규',lv:'저레벨',part:1342,nopart:2890,total:4232},
-  {date:'2025-12-21(일)',ug:'01. 기존',lv:'저레벨',part:10287,nopart:3712,total:13999},
-  {date:'2025-12-21(일)',ug:'01. 기존',lv:'중레벨',part:39854,nopart:4755,total:44609},
-  {date:'2025-12-21(일)',ug:'01. 기존',lv:'고레벨',part:254982,nopart:11541,total:266523},
-  {date:'2025-12-21(일)',ug:'02. 복귀',lv:'저레벨',part:2087,nopart:2803,total:4890},
-  {date:'2025-12-21(일)',ug:'02. 복귀',lv:'중레벨',part:4698,nopart:1591,total:6289},
-  {date:'2025-12-21(일)',ug:'02. 복귀',lv:'고레벨',part:7891,nopart:1543,total:9434},
-  {date:'2025-12-21(일)',ug:'03. 신규',lv:'저레벨',part:1203,nopart:2712,total:3915},
-  {date:'2025-12-22(월)',ug:'01. 기존',lv:'저레벨',part:8932,nopart:3498,total:12430},
-  {date:'2025-12-22(월)',ug:'01. 기존',lv:'중레벨',part:34712,nopart:4523,total:39235},
-  {date:'2025-12-22(월)',ug:'01. 기존',lv:'고레벨',part:238541,nopart:11087,total:249628},
-  {date:'2025-12-22(월)',ug:'02. 복귀',lv:'저레벨',part:1734,nopart:2637,total:4371},
-  {date:'2025-12-22(월)',ug:'02. 복귀',lv:'중레벨',part:4012,nopart:1502,total:5514},
-  {date:'2025-12-22(월)',ug:'02. 복귀',lv:'고레벨',part:7124,nopart:1489,total:8613},
-  {date:'2025-12-22(월)',ug:'03. 신규',lv:'저레벨',part:1098,nopart:2654,total:3752},
-];
+const RAW_DATA = (function() {
+  const DOW = ['일','월','화','수','목','금','토'];
+  const dates = Array.from({length:30}, (_,i) => {
+    const d = new Date(2026,5,11+i);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}(${DOW[d.getDay()]})`;
+  });
+  const cfg = [
+    {ug:'01. 기존', lv:'저레벨',  bp:8000,  bn:3500},
+    {ug:'01. 기존', lv:'중레벨',  bp:35000, bn:4500},
+    {ug:'01. 기존', lv:'고레벨',  bp:244000,bn:11000},
+    {ug:'02. 복귀', lv:'저레벨',  bp:1700,  bn:2700},
+    {ug:'02. 복귀', lv:'중레벨',  bp:4200,  bn:1600},
+    {ug:'02. 복귀', lv:'고레벨',  bp:7400,  bn:1530},
+    {ug:'03. 신규', lv:'저레벨',  bp:1100,  bn:2850},
+  ];
+  function seed(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 0x01000193) >>> 0;
+    return (h & 0xffff) / 0xffff;
+  }
+  const rows = [];
+  dates.forEach(date => {
+    cfg.forEach(c => {
+      const r = seed(date + c.ug + c.lv);
+      const m = 0.88 + r * 0.24;
+      const part   = Math.round(c.bp * m);
+      const nopart = Math.round(c.bn * (2 - m));
+      rows.push({date, ug:c.ug, lv:c.lv, part, nopart, total:part+nopart});
+    });
+  });
+  return rows;
+})();
 
 // ══════════════════════════════════════════
 // DETAIL: HELPERS
@@ -914,15 +969,15 @@ function buildRetGrid(day) {
   const ugs=['01. 기존','02. 복귀','03. 신규'];
   const lvs=['저레벨','중레벨','고레벨'];
   const LV_FULL={'저레벨':'01. 저레벨(1~40Lv)','중레벨':'02. 중레벨(41~70Lv)','고레벨':'03. 고레벨(71~90Lv)'};
-  const DAY_IDX={d1:1,d7:7,d14:14};
+  const idx=parseInt(day.replace('d',''));
   const ugColors={'01. 기존':'#93C5FD','02. 복귀':'#FFDF75','03. 신규':'#94D8B2'};
   const ugTextColors={'01. 기존':'#2563EB','02. 복귀':'#FFC03D','03. 신규':'#2DB267'};
-  const idx=DAY_IDX[day];
+  // idx는 위에서 parseInt로 이미 계산됨
   let html='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start">';
   ugs.forEach(ug=>{
     html+=`<div><div class="ug-header">${ug}</div><div class="ret-grid">`;
     lvs.forEach(lv=>{
-      const subset=DAILY_RET_DATA.filter(r=>r.ug===ug&&r.lv===LV_FULL[lv]);
+      const subset=detailRetData.filter(r=>r.ug===ug&&r.lv===LV_FULL[lv]);
       if(!subset.length){html+=`<div class="ret-cell na-cell-block">0</div>`;return;}
       const p=subset.reduce((s,r)=>s+r.part[idx],0)/subset.length;
       const np=subset.reduce((s,r)=>s+r.nonpart[idx],0)/subset.length;
@@ -955,25 +1010,28 @@ let showPart=true, showNonpart=true;
 
 function buildCurve() {
   const key=document.getElementById('curve-ug').value;
-  const labels=Array.from({length:15},(_,i)=>`D+${String(i).padStart(2,'0')}`);
+  const numDays = Math.min(detailPeriodDays, 14) + 1;
+  const labels=Array.from({length:numDays},(_,i)=>`D+${String(i).padStart(2,'0')}`);
   const UG_MAP={exist:'01. 기존',ret:'02. 복귀','new':'03. 신규'};
   const LV_MAP={low:'01. 저레벨(1~40Lv)',mid:'02. 중레벨(41~70Lv)',high:'03. 고레벨(71~90Lv)'};
   const [ugKey,lvKey]=key.split('-');
   const ugFilter=UG_MAP[ugKey];
   const lvFilter=lvKey==='all'?null:LV_MAP[lvKey];
-  const subset=DAILY_RET_DATA.filter(r=>r.ug===ugFilter&&(lvFilter===null||r.lv===lvFilter));
-  const avgArr=field=>Array.from({length:15},(_,i)=>subset.length?subset.reduce((s,r)=>s+r[field][i],0)/subset.length:0);
+  const subset=detailRetData.filter(r=>r.ug===ugFilter&&(lvFilter===null||r.lv===lvFilter));
+  const avgArr=field=>Array.from({length:numDays},(_,i)=>subset.length?subset.reduce((s,r)=>s+r[field][i],0)/subset.length:0);
   const d={part:avgArr('part'),nonpart:avgArr('nonpart')};
   const partColor=key.startsWith('ret')?'#FFDF75':key.startsWith('new')?'#94D8B2':'#93C5FD';
   const partTextColor=key.startsWith('ret')?'#FFC03D':key.startsWith('new')?'#2DB267':'#2563EB';
   const datasets=[];
   if(showPart) datasets.push({label:'참여',data:d.part,borderColor:partColor,backgroundColor:partColor+'30',pointRadius:3,tension:0.3,fill:true});
   if(showNonpart) datasets.push({label:'미참여',data:d.nonpart,borderColor:'#94A3B8',backgroundColor:'#94A3B820',borderDash:[4,3],pointRadius:3,tension:0.3,fill:true});
-  const days=Array.from({length:15},(_,i)=>`D+${String(i).padStart(2,'0')}`);
-  document.getElementById('t-cohort-head').innerHTML=`<tr><th>구분</th>${days.map(d=>`<th style="text-align:right">${d}</th>`).join('')}</tr>`;
+  const days=Array.from({length:numDays},(_,i)=>`D+${String(i).padStart(2,'0')}`);
+  const stickyTh = `position:sticky;left:0;background:#F1F5F9;z-index:2;white-space:nowrap`;
+  const stickyTd = `position:sticky;left:0;background:#fff;z-index:1;white-space:nowrap`;
+  document.getElementById('t-cohort-head').innerHTML=`<tr><th style="${stickyTh}">구분</th>${days.map(d=>`<th style="text-align:right;white-space:nowrap">${d}</th>`).join('')}</tr>`;
   const partRow=d.part.map(v=>`<td style="text-align:right">${v.toFixed(1)}%</td>`).join('');
   const nonpartRow=d.nonpart.map(v=>`<td style="text-align:right;color:#94A3B8">${v.toFixed(1)}%</td>`).join('');
-  document.getElementById('t-cohort-body').innerHTML=`<tr><td style="font-weight:700;color:${partTextColor}">참여</td>${partRow}</tr><tr><td style="font-weight:700;color:#94A3B8">미참여</td>${nonpartRow}</tr>`;
+  document.getElementById('t-cohort-body').innerHTML=`<tr><td style="font-weight:700;color:${partTextColor};${stickyTd}">참여</td>${partRow}</tr><tr><td style="font-weight:700;color:#94A3B8;${stickyTd}">미참여</td>${nonpartRow}</tr>`;
   if(curveChart) curveChart.destroy();
   curveChart=new Chart(document.getElementById('curve-chart'),{
     type:'line',data:{labels,datasets},
@@ -988,13 +1046,13 @@ function buildRaw() {
   const tbody=document.getElementById('t-raw-body');
   const rows=[];
   const dateSpans={},ugSpans={};
-  RAW_DATA.forEach(r=>{
+  detailRawData.forEach(r=>{
     dateSpans[r.date]=(dateSpans[r.date]||0)+1;
     const uk=r.date+'|'+r.ug;
     ugSpans[uk]=(ugSpans[uk]||0)+1;
   });
   const dateSeen=new Set(),ugSeen=new Set();
-  RAW_DATA.forEach(r=>{
+  detailRawData.forEach(r=>{
     const dk=r.date,uk=r.date+'|'+r.ug;
     const isFD=!dateSeen.has(dk),isFU=!ugSeen.has(uk);
     if(isFD) dateSeen.add(dk);
@@ -1012,7 +1070,7 @@ function buildDailyRet() {
   const days=Array.from({length:15},(_,i)=>`D+${String(i).padStart(2,'0')}`);
   document.getElementById('t-daily-ret-head').innerHTML=`<tr><th style="width:76px">유저군</th><th style="width:110px">레벨군</th><th style="width:88px;cursor:pointer;white-space:nowrap" id="th-daily-date">일자 <span id="sort-arrow">${dailyRetSortAsc?'▲':'▼'}</span></th><th style="width:68px;text-align:right;white-space:nowrap">접속유저수</th>${days.map(d=>`<th style="text-align:right">${d}</th>`).join('')}</tr>`;
   document.getElementById('th-daily-date').addEventListener('click',()=>{dailyRetSortAsc=!dailyRetSortAsc;buildDailyRet();});
-  const data=[...DAILY_RET_DATA].sort((a,b)=>{const cmp=a.date<b.date?-1:a.date>b.date?1:0;return dailyRetSortAsc?cmp:-cmp;});
+  const data=[...detailRetData].sort((a,b)=>{const cmp=a.date<b.date?-1:a.date>b.date?1:0;return dailyRetSortAsc?cmp:-cmp;});
   const avgMap={};
   const UGS=['01. 기존','02. 복귀','03. 신규'];
   const LVS=['01. 저레벨(1~40Lv)','02. 중레벨(41~70Lv)','03. 고레벨(71~90Lv)'];
@@ -1044,20 +1102,199 @@ function buildDailyRet() {
       const lk=ug+'|'+lv;
       const lvLabel=lv.replace('(','<br>(');
       rows.push(`<tr><td rowspan="${lvRowCount[lk]}" style="vertical-align:top;border-right:1px solid #E2E8F0">${lvLabel}</td><td style="font-weight:700;background:#F8FAFC;color:#475569">평균</td><td style="text-align:right;font-weight:600;background:#F8FAFC">—</td>${lvAvg?lvAvg.map(v=>`<td style="text-align:right;background:#F8FAFC">${fmtAvg(v)}</td>`).join(''):''}</tr>`);
-      subset.forEach(r=>{rows.push(`<tr><td style="white-space:nowrap">${r.date}</td><td style="text-align:right">${fmt(r.users)}</td>${r[partKey].map(v=>`<td style="text-align:right">${fmtAvg(v)}</td>`).join('')}</tr>`);});
+      subset.forEach(r=>{rows.push(`<tr><td style="white-space:nowrap">${r.date}</td><td style="text-align:right">${fmt(r.users)}</td>${r[partKey].slice(0,15).map(v=>`<td style="text-align:right">${fmtAvg(v)}</td>`).join('')}</tr>`);});
     });
   });
   document.getElementById('t-daily-ret-body').innerHTML=rows.join('');
 }
 
-// ── Detail event listeners ──
-document.querySelectorAll('.day-tab').forEach(tab=>{
-  tab.addEventListener('click',()=>{
-    document.querySelectorAll('.day-tab').forEach(t=>t.classList.remove('active'));
-    tab.classList.add('active');
-    buildRetGrid(tab.dataset.d);
-  });
+// ══════════════════════════════════════════
+// DETAIL: 기간 필터
+// ══════════════════════════════════════════
+const DETAIL_TODAY = '2026-06-22';
+
+function detailRangeByMode(mode) {
+  const today = new Date(DETAIL_TODAY);
+  const evStart = '2026-06-11', evEnd = '2026-07-10';
+  if (mode === 'all') return { start: evStart, end: evEnd };
+  const days = mode === '7d' ? 7 : 14;
+  const s = new Date(today); s.setDate(s.getDate() - (days - 1));
+  const start = s.toISOString().slice(0, 10);
+  return {
+    start: start < evStart ? evStart : start,
+    end:   DETAIL_TODAY > evEnd ? evEnd : DETAIL_TODAY,
+  };
+}
+
+let detailFilterStart = '2026-06-11';
+let detailFilterEnd   = '2026-07-10';
+let detailPeriodDays  = 30;
+let detailRetData = DAILY_RET_DATA;
+let detailRawData = RAW_DATA;
+
+function daysBetween(a, b) {
+  return Math.round((new Date(b) - new Date(a)) / 86400000) + 1;
+}
+
+function toggleDetailDropdown() {
+  document.getElementById('dDateDropdown').classList.toggle('open');
+}
+
+function selectDetailRange(mode) {
+  document.getElementById('dDateDropdown').classList.remove('open');
+  ['all','7d','14d','custom'].forEach(k =>
+    document.getElementById('dopt-'+k).classList.toggle('active', k === mode)
+  );
+  if (mode === 'custom') {
+    document.getElementById('dDateSelectLabel').textContent = '사용자 지정';
+    document.getElementById('dDateInputRow').classList.add('open');
+    return;
+  }
+  document.getElementById('dDateInputRow').classList.remove('open');
+  const labels = { all:'전체', '7d':'7일', '14d':'14일' };
+  document.getElementById('dDateSelectLabel').textContent = labels[mode];
+  const r = detailRangeByMode(mode);
+  detailFilterStart = r.start;
+  detailFilterEnd   = r.end;
+  document.getElementById('detail-start-date').value = r.start;
+  document.getElementById('detail-end-date').value   = r.end;
+  refreshDetailMetrics();
+}
+
+function applyDetailFilter() {
+  const s = document.getElementById('detail-start-date').value;
+  const e = document.getElementById('detail-end-date').value;
+  if (!s || !e || s > e) return;
+  detailFilterStart = s;
+  detailFilterEnd   = e;
+  document.getElementById('dDateSelectLabel').textContent = '사용자 지정';
+  refreshDetailMetrics();
+}
+
+document.addEventListener('click', e => {
+  const wrap = document.querySelector('.d-date-filter-wrap');
+  if (wrap && !wrap.contains(e.target)) document.getElementById('dDateDropdown').classList.remove('open');
 });
+
+function rebuildDayTabs() {
+  const available = [1,7,14,21,28].filter(d => d <= detailPeriodDays);
+  if (!available.length) available.push(1);
+  document.getElementById('day-tabs-container').innerHTML = available.map((d,i) =>
+    `<div class="day-tab${i===0?' active':''}" data-d="d${d}" onclick="selectDayTab(this,'d${d}')">D+${d}</div>`
+  ).join('');
+  buildRetGrid('d' + available[0]);
+}
+
+function selectDayTab(el, day) {
+  document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  buildRetGrid(day);
+}
+
+
+function refreshDetailMetrics() {
+  const total = daysBetween('2026-06-11', '2026-07-10'); // 30
+  const selected = daysBetween(detailFilterStart, detailFilterEnd);
+  const ratio = Math.min(selected / total, 1);
+
+  // 범위 표시 업데이트
+  const fmtDate = d => d.slice(2).replace(/-/g, '.');
+  document.getElementById('detail-range-display').textContent =
+    `${fmtDate(detailFilterStart)} ~ ${fmtDate(detailFilterEnd)} · ${selected}일`;
+
+  // ── KPI 카드 업데이트 (참여율은 유지, 절대수만 스케일) ──
+  const scaled = PART_DATA.map(r => ({
+    ...r,
+    part:   Math.round(r.part   * ratio),
+    nopart: Math.round(r.nopart * ratio),
+    total:  Math.round(r.total  * ratio),
+  }));
+
+  const kpis = [
+    { id: 'kpi-total',    ug: '00. 전체' },
+    { id: 'kpi-existing', ug: '01. 기존' },
+    { id: 'kpi-return',   ug: '02. 복귀' },
+    { id: 'kpi-new',      ug: '03. 신규' },
+  ];
+  kpis.forEach(({ id, ug }) => {
+    const r = scaled.find(d => d.ug === ug && d.lv === '00. 전체');
+    if (!r) return;
+    const el = document.getElementById(id);
+    el.querySelector('.kpi-value').textContent = r.rate.toFixed(1) + '%';
+    el.querySelector('div:last-child').textContent =
+      r.part.toLocaleString('ko-KR') + ' / ' + r.total.toLocaleString('ko-KR') + '명';
+  });
+
+  // ── 참여율 테이블 업데이트 ──
+  const tbody = document.getElementById('t-part-body');
+  const groups = ['00. 전체','01. 기존','02. 복귀','03. 신규'];
+  let html = '';
+  groups.forEach(ug => {
+    const rows = scaled.filter(r => r.ug === ug);
+    rows.forEach(r => {
+      const isTotal = r.lv.startsWith('00.');
+      const color = UG_COLOR[ug] || '#475569';
+      const barPct = r.rate || 0;
+      html += `<tr${isTotal ? ' class="group-header"' : ''}>
+        <td style="font-weight:${isTotal ? '700' : '400'}">${isTotal ? ug : ''}</td>
+        <td>${r.lv}</td>
+        <td style="text-align:right">${fmt(r.part)}</td>
+        <td style="text-align:right">${fmt(r.nopart)}</td>
+        <td style="text-align:right">${fmt(r.total)}</td>
+        <td style="text-align:right;font-weight:600">${fmtp(r.rate)}</td>
+        <td style="min-width:120px"><div class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:${barPct}%;background:${UG_BAR_COLOR[ug] || '#CBD5E1'}"></div></div></div></td>
+      </tr>`;
+    });
+  });
+  tbody.innerHTML = html;
+
+  // ── 일평균 카드 업데이트 (선택 기간 일수 기준) ──
+  const AVG_BASE = {
+    exist: { low: 4676, mid: 22600, high: 201731 },
+    ret:   { low: 511,  mid: 1069,  high: 1482   },
+    'new': { low: 654,  mid: 4,     high: 0       },
+  };
+  const AVG_TOTAL = { exist: 228007, ret: 3062, 'new': 658 };
+  const pctFmt = (v, total) => total ? (v / total * 100).toFixed(1) + '%' : '0.0%';
+
+  function updateAvgCard(cardId, key) {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+    const items = card.querySelectorAll('.sc-item');
+    const lvs = ['low', 'mid', 'high'];
+    const total = Object.values(AVG_BASE[key]).reduce((s, v) => s + v, 0);
+    lvs.forEach((lv, i) => {
+      const v = AVG_BASE[key][lv];
+      items[i].querySelector('.sc-num').textContent = v.toLocaleString('ko-KR');
+      items[i].querySelector('.sc-pct').textContent = '일평균 · ' + pctFmt(v, total);
+    });
+  }
+  updateAvgCard('card-1-3-existing', 'exist');
+  updateAvgCard('card-1-3-return',   'ret');
+  updateAvgCard('card-1-3-new',      'new');
+
+  // ── 기간 일수 갱신 ──
+  detailPeriodDays = selected;
+
+  // ── 리텐션 데이터 필터링 후 재렌더 ──
+  detailRetData = DAILY_RET_DATA.filter(r => {
+    const ed = r.date.slice(0, 10);
+    return ed >= detailFilterStart && ed <= detailFilterEnd;
+  });
+  detailRawData = RAW_DATA.filter(r => {
+    const ed = r.date.slice(0, 10);
+    return ed >= detailFilterStart && ed <= detailFilterEnd;
+  });
+
+  if (detailInitialized) {
+    rebuildDayTabs();
+    setTimeout(() => buildCurve(), 0);
+    buildRaw();
+    buildDailyRet();
+  }
+}
+
+// ── Detail event listeners ──
 document.getElementById('curve-ug').addEventListener('change',buildCurve);
 document.querySelectorAll('.toggle-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
@@ -1079,9 +1316,19 @@ document.getElementById('daily-ret-header').addEventListener('click',()=>{
 });
 document.getElementById('daily-ret-part-sel').addEventListener('change',buildDailyRet);
 
+// 날짜 입력 교차 제약 + custom 칩 자동 활성
+document.getElementById('detail-start-date').addEventListener('change', function() {
+  document.getElementById('detail-end-date').min = this.value;
+  selectDetailRange('custom');
+});
+document.getElementById('detail-end-date').addEventListener('change', function() {
+  document.getElementById('detail-start-date').max = '2026-07-10';
+  selectDetailRange('custom');
+});
+
 document.getElementById('csv-btn').addEventListener('click',()=>{
   const header=['날짜','유저군','레벨군','참여','미참여','총합계'];
-  const rows=RAW_DATA.map(r=>[r.date,r.ug,r.lv,r.part,r.nopart,r.total]);
+  const rows=detailRawData.map(r=>[r.date,r.ug,r.lv,r.part,r.nopart,r.total]);
   const csv=[header,...rows].map(r=>r.join(',')).join('\n');
   const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='event-raw-data.csv';a.click();
@@ -1091,11 +1338,21 @@ document.getElementById('daily-ret-csv-btn').addEventListener('click',()=>{
   const partLabel=partKey==='part'?'참여':'미참여';
   const days=Array.from({length:15},(_,i)=>`D+${String(i).padStart(2,'0')}`);
   const header=['유저군','레벨군','일자','접속유저수',...days];
-  const rows=DAILY_RET_DATA.map(r=>[r.ug,r.lv,r.date,r.users,...r[partKey].map(v=>v.toFixed(1)+'%')]);
+  const rows=detailRetData.map(r=>[r.ug,r.lv,r.date,r.users,...r[partKey].map(v=>v.toFixed(1)+'%')]);
   const csv=[header,...rows].map(r=>r.join(',')).join('\n');
   const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`event-daily-ret-${partLabel}.csv`;a.click();
 });
+
+// ── CSV 툴팁 초기화 ──
+(function() {
+  const isOngoing = DETAIL_TODAY >= EVENT_START && DETAIL_TODAY <= EVENT_END;
+  const line1 = '화면 필터와 무관하게 이벤트 전체 기간 데이터를 받습니다.';
+  const line2 = '이벤트가 진행 중이면 시작일 ~ 오늘까지 데이터를 받습니다.';
+  document.querySelectorAll('.csv-tip').forEach(el => {
+    el.innerHTML = line1 + (isOngoing ? '<br>' + line2 : '');
+  });
+})();
 
 // ══════════════════════════════════════════
 // spec-sb 연동: postMessage 수신
