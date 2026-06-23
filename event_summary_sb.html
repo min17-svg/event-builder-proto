@@ -189,8 +189,14 @@
     <div class="desc-body">
       이벤트 기간 중 날짜별 DT·PV·UV를 꺾은선 차트로 표시한다.
       <ul>
-        <li><b>기간 필터 3종:</b> 7일(오늘 기준 최근 7일) / 한달(최근 30일) / 사용자 지정 기간</li>
-        <li>필터 범위와 이벤트 기간의 <b>교집합만</b> 표시 (이벤트 기간 밖 날짜 미표시)</li>
+        <li><b>기간 필터 4종 (기본: 전체):</b>
+          <ul>
+            <li><b>전체</b> — 이벤트 전체 기간 (시작일 ~ 종료일). 기본 선택값.</li>
+            <li><b>7일</b> — 오늘 기준 최근 7일 (이벤트 기간과 교집합)</li>
+            <li><b>한달</b> — 오늘 기준 최근 30일 (이벤트 기간과 교집합)</li>
+            <li><b>사용자 지정</b> — 날짜 피커에서 직접 선택. 선택 가능 범위는 이벤트 기간(시작일 ~ 종료일)으로 제한</li>
+          </ul>
+        </li>
         <li><b>DT</b>(체류시간) · <b>PV</b>(페이지뷰) · <b>UV</b>(순방문자수) — 세 지표가 엇갈리면 문제의 단서</li>
       </ul>
     </div>
@@ -200,8 +206,7 @@
     </div>
     <div class="warn-block">
       <span class="block-title">Alert (사용자 지정 기간 선택시)</span>
-      시작일 &gt; 종료일 상태로 "적용" 클릭 → "시작일이 종료일보다 늦습니다. 날짜를 다시 확인해 주세요." [확인]<br>
-      조회 기간과 이벤트 기간 교집합 없음 → "선택한 기간에 데이터가 없습니다. 이벤트 기간 내 날짜를 선택해 주세요." [확인]
+      시작일 &gt; 종료일 상태로 "적용" 클릭 → "시작일이 종료일보다 늦습니다. 날짜를 다시 확인해 주세요." [확인]
     </div>
   </div>
 
@@ -282,6 +287,36 @@
       <ul>
         <li>이벤트명 · 진행 상태 뱃지(진행중 / 종료 / 예정) · 이벤트 기간 · 미션 수</li>
         <li>이벤트 기간·상태를 함께 보여 트래픽·지표 수치 해석의 <b>기준선</b> 제공</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- D10 -->
+  <div class="desc-list-item" id="list-D10" onclick="activate('D10')" onmouseenter="spot('D10')" onmouseleave="unspot()">
+    <span class="desc-list-num">_D10</span>
+    <span class="desc-list-name">기간 설정 필터</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-D10">
+    <div class="desc-id">EVENT_DETAIL_10</div>
+    <div class="desc-name">기간 설정 필터</div>
+    <span class="tag tag-type">조회 (필터)</span>
+    <span class="tag tag-ui">드롭다운 버튼 + 옵션 목록 + 날짜 입력행 (사용자 지정 시 노출) + 기간 표시 텍스트</span>
+    <div class="desc-body">
+      이벤트 정보 카드 하단, 참여/리텐션 섹션 상단에 위치. 드롭다운 선택 즉시 페이지 내 모든 지표가 갱신된다.
+      <ul>
+        <li><b>전체</b> — 이벤트 시작일 ~ 종료일</li>
+        <li><b>7일</b> — 오늘 기준 최근 7일, 이벤트 기간 내로 클램핑</li>
+        <li><b>14일</b> — 오늘 기준 최근 14일, 이벤트 기간 내로 클램핑</li>
+        <li><b>사용자 지정</b> — 날짜 입력행 노출, 시작일·종료일 입력 후 [적용] 클릭 시 반영. 선택 범위는 이벤트 기간 내로 제한</li>
+        <li>현재 적용 기간은 <code>YY.MM.DD ~ YY.MM.DD · N일</code> 형식으로 우측에 항시 표시</li>
+      </ul>
+      <b>연동 지표:</b>
+      <ul>
+        <li>유저군별 참여율 KPI / 참여율 테이블 — 선택 기간 데이터로 스케일</li>
+        <li>참여·미참여 리텐션 D+n 탭 — 기간 내 데이터 평균 + D+n 탭 구성 동적 변경</li>
+        <li>일별 평균 리텐션 곡선 — 기간 내 단순 평균, D+N 컬럼 수 동적 조정</li>
+        <li>일별 참여·미참여 유저 수 / 일별 리텐션 테이블 — 기간 내 날짜 행만 표시</li>
       </ul>
     </div>
   </div>
@@ -471,37 +506,6 @@
       <b>버튼 툴팁</b><br>
       첫 줄 (항상 표시): "화면 필터와 무관하게 이벤트 전체 기간 데이터를 받습니다."<br>
       둘째 줄 (진행 중일 때만 추가): "이벤트가 진행 중이면 시작일 ~ 오늘까지 데이터를 받습니다."
-    </div>
-  </div>
-
-
-  <!-- D10 -->
-  <div class="desc-list-item" id="list-D10" onclick="activate('D10')" onmouseenter="spot('D10')" onmouseleave="unspot()">
-    <span class="desc-list-num">_D10</span>
-    <span class="desc-list-name">기간 설정 필터</span>
-    <span class="desc-list-arrow">›</span>
-  </div>
-  <div class="desc-detail" id="desc-D10">
-    <div class="desc-id">EVENT_DETAIL_10</div>
-    <div class="desc-name">기간 설정 필터</div>
-    <span class="tag tag-type">조회 (필터)</span>
-    <span class="tag tag-ui">드롭다운 버튼 + 옵션 목록 + 날짜 입력행 (사용자 지정 시 노출) + 기간 표시 텍스트</span>
-    <div class="desc-body">
-      이벤트 정보 카드 하단, 참여/리텐션 섹션 상단에 위치. 드롭다운 선택 즉시 페이지 내 모든 지표가 갱신된다.
-      <ul>
-        <li><b>전체</b> — 이벤트 시작일 ~ 종료일</li>
-        <li><b>7일</b> — 오늘 기준 최근 7일, 이벤트 기간 내로 클램핑</li>
-        <li><b>14일</b> — 오늘 기준 최근 14일, 이벤트 기간 내로 클램핑</li>
-        <li><b>사용자 지정</b> — 날짜 입력행 노출, 시작일·종료일 입력 후 [적용] 클릭 시 반영. 선택 범위는 이벤트 기간 내로 제한</li>
-        <li>현재 적용 기간은 <code>YY.MM.DD ~ YY.MM.DD · N일</code> 형식으로 우측에 항시 표시</li>
-      </ul>
-      <b>연동 지표:</b>
-      <ul>
-        <li>유저군별 참여율 KPI / 참여율 테이블 — 선택 기간 데이터로 스케일</li>
-        <li>참여·미참여 리텐션 D+n 탭 — 기간 내 데이터 평균 + D+n 탭 구성 동적 변경</li>
-        <li>일별 평균 리텐션 곡선 — 기간 내 단순 평균, D+N 컬럼 수 동적 조정</li>
-        <li>일별 참여·미참여 유저 수 / 일별 리텐션 테이블 — 기간 내 날짜 행만 표시</li>
-      </ul>
     </div>
   </div>
 
