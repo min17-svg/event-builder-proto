@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>이벤트 요약 / 상세 지표 - 화면설계서</title>
+<style>
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f3; --bg3: #eeece8;
+    --text: #1a1a18; --text2: #6b6a65; --text3: #9c9a92;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.2);
+    --info-bg: #e6f1fb; --info-text: #0c447c; --info-border: rgba(24,95,165,0.3);
+    --warn-bg: #faeeda; --warn-text: #633806;
+    --radius: 8px; --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c; --bg2: #2a2a27; --bg3: #333330;
+      --text: #e8e6de; --text2: #9c9a92; --text3: #6b6a65;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+      --info-bg: #0c2d4a; --info-text: #85b7eb; --info-border: rgba(55,138,221,0.3);
+      --warn-bg: #2d1f00; --warn-text: #fac775;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Pretendard', 'Noto Sans KR', sans-serif;
+         font-size: 13px; color: var(--text); background: var(--bg);
+         max-width: 2000px; margin: 0 auto; }
+
+  .breadcrumb { padding: 12px 16px; font-size: 11px; color: var(--text2);
+                border-bottom: 0.5px solid var(--border); }
+  .breadcrumb a { color: var(--info-text); text-decoration: none; }
+
+  .layout { display: grid; grid-template-columns: 1fr 320px;
+            gap: 16px; padding: 16px; min-height: calc(100vh - 40px); }
+
+  /* 좌측 패널 */
+  .screen-panel { background: var(--bg2); border-radius: var(--radius-lg);
+                  padding: 16px; border: 0.5px solid var(--border); min-width: 0; }
+  .screen-panel-head { display: flex; justify-content: space-between; align-items: center;
+                       gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .screen-panel-title { font-size: 11px; color: var(--text2); }
+
+  .iframe-wrap { border-radius: var(--radius); overflow: hidden;
+                 border: 0.5px solid var(--border); }
+  .iframe-wrap iframe { display: block; width: 100%;
+                        height: calc(100vh - 108px); min-height: 700px; border: none; }
+
+  .hint { font-size: 11px; color: var(--text3); text-align: center;
+          padding: 10px 0 2px; line-height: 1.7; }
+
+  /* 우측 패널 */
+  .desc-panel { background: var(--bg); border-radius: var(--radius-lg);
+                border: 0.5px solid var(--border); padding: 16px;
+                overflow-y: auto; max-height: calc(100vh - 56px);
+                position: sticky; top: 16px; }
+  .desc-panel-title { font-size: 11px; font-weight: 500; color: var(--text2); margin-bottom: 8px; }
+  .desc-purpose { font-size: 11px; color: var(--text2); line-height: 1.7;
+                  background: var(--bg2); border-radius: var(--radius);
+                  padding: 10px 12px; margin-bottom: 12px; }
+
+  .desc-list-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+                    border-radius: var(--radius); cursor: pointer; transition: background 0.12s;
+                    border: 0.5px solid transparent; margin-bottom: 3px; }
+  .desc-list-item:hover { background: var(--bg2); border-color: var(--border); }
+  .desc-list-item.active { background: var(--info-bg); border-color: var(--info-border); }
+  .desc-list-num { font-size: 10px; font-weight: 500; color: var(--info-text);
+                   min-width: 36px; font-family: monospace; }
+  .desc-list-name { font-size: 12px; color: var(--text); flex: 1; }
+  .desc-list-arrow { font-size: 10px; color: var(--text3); transition: transform 0.15s; }
+  .desc-list-item.active .desc-list-arrow { transform: rotate(90deg); }
+
+  .desc-detail { display: none; margin: 0 0 6px 0; padding: 12px 14px;
+                 background: var(--bg2); border-radius: var(--radius);
+                 border: 0.5px solid var(--border); }
+  .desc-detail.active { display: block; }
+  .desc-id { font-size: 11px; font-weight: 500; color: var(--info-text); margin-bottom: 4px; }
+  .desc-name { font-size: 13px; font-weight: 500; margin-bottom: 8px; }
+  .desc-body { font-size: 12px; color: var(--text2); line-height: 1.7; }
+  .desc-body ul { padding-left: 16px; margin: 4px 0; }
+  .desc-body li { margin-bottom: 2px; }
+  .desc-body b { color: var(--text); }
+
+  .tag { display: inline-block; font-size: 10px; padding: 1px 8px;
+         border-radius: 100px; margin: 0 3px 6px 0; }
+  .tag-type { background: var(--bg2); color: var(--text2); border: 0.5px solid var(--border); }
+  .tag-ui { background: var(--warn-bg); color: var(--warn-text); }
+
+  .info-block { margin-top: 10px; padding: 10px; border-radius: var(--radius);
+                font-size: 11px; background: var(--info-bg); color: var(--info-text); line-height: 1.7; }
+  .warn-block { margin-top: 10px; padding: 10px; border-radius: var(--radius);
+                font-size: 11px; background: var(--warn-bg); color: var(--warn-text); line-height: 1.7; }
+  .block-title { font-weight: 500; display: block; margin-bottom: 4px; }
+
+  .grp-title { font-size: 10px; font-weight: 700; color: var(--text3);
+               letter-spacing: 0.5px; margin: 12px 0 6px; text-transform: uppercase; }
+  .grp-divider { height: 0.5px; background: var(--border); margin: 14px 0 10px; }
+</style>
+</head>
+<body>
+
+<div class="breadcrumb">
+  <a href="../index.html">이벤트 빌더</a> &gt; 이벤트 보고 &gt; 이벤트 요약 / 상세 지표
+</div>
+
+<div class="layout">
+
+<!-- ════════════ 좌측: proto 임베드 ════════════ -->
+<div class="screen-panel">
+  <div class="screen-panel-head">
+    <div class="screen-panel-title">이벤트 보고 &gt; 이벤트 요약 · v1.0 (프로토타입 원본)</div>
+  </div>
+  <div class="iframe-wrap">
+    <iframe id="protoFrame" src="event_summary_proto.html" title="이벤트 보고 프로토타입"></iframe>
+  </div>
+  <div class="hint">
+    오른쪽 목록에서 기능 항목을 클릭하면 해당 영역으로 이동합니다.<br>
+    항목에 마우스를 올리면 현재 화면의 해당 영역이 강조 표시됩니다.
+  </div>
+</div>
+
+<!-- ════════════ 우측: 설명 패널 ════════════ -->
+<div class="desc-panel">
+  <div class="desc-panel-title">기능 설명 — EVENT_SUMMARY / EVENT_DETAIL</div>
+  <div class="desc-purpose">
+    이벤트 운영 담당자가 이벤트 트래픽·지표를 요약 확인하고,
+    유저군·레벨군 단위 참여율 및 리텐션 효과를 심층 분석하는 보고 화면 쌍.
+    요약에서 이상값 감지 → 상세에서 원인 탐색 → 운영 판단으로 이어진다.
+  </div>
+
+  <!-- ── EVENT_SUMMARY ── -->
+  <div class="grp-title">EVENT_SUMMARY · 이벤트 요약</div>
+
+  <!-- S01 -->
+  <div class="desc-list-item" id="list-S01" onclick="activate('S01')" onmouseenter="spot('S01')" onmouseleave="unspot()">
+    <span class="desc-list-num">_S01</span>
+    <span class="desc-list-name">페이지 헤더 (상세 지표 보기 버튼)</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-S01">
+    <div class="desc-id">EVENT_SUMMARY_01</div>
+    <div class="desc-name">페이지 헤더 (상세 지표 보기 버튼)</div>
+    <span class="tag tag-type">조회 · 네비게이션</span>
+    <span class="tag tag-ui">텍스트 타이틀 + Primary 버튼 (우측 정렬)</span>
+    <div class="desc-body">
+      상세 지표 보기 버튼 클릭 시 EVENT_DETAIL(이벤트 참여·리텐션 상세 지표) 화면으로 이동한다.
+      <ul>
+        <li>단순 이동 버튼이 아니라 <b>요약 → 상세 드릴다운 탐색 구조의 출발점</b></li>
+        <li>트래픽·지표 이상값 발견 시 끊김 없이 상세로 진입할 수 있도록 최상단 노출</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- S02 -->
+  <div class="desc-list-item" id="list-S02" onclick="activate('S02')" onmouseenter="spot('S02')" onmouseleave="unspot()">
+    <span class="desc-list-num">_S02</span>
+    <span class="desc-list-name">이벤트 정보 카드</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-S02">
+    <div class="desc-id">EVENT_SUMMARY_02</div>
+    <div class="desc-name">이벤트 정보 카드</div>
+    <span class="tag tag-type">조회</span>
+    <span class="tag tag-ui">카드 (읽기전용) · 인라인 상태 뱃지</span>
+    <div class="desc-body">
+      현재 조회 중인 이벤트의 기본 정보를 표시한다.
+      <ul>
+        <li>이벤트명 · 진행 상태 뱃지(진행중 / 종료 / 예정) · 이벤트 기간 · 미션 수</li>
+        <li>이벤트 기간·상태를 함께 보여 트래픽·지표 수치 해석의 <b>기준선</b> 제공</li>
+      </ul>
+    </div>
+    <div class="warn-block">
+      <span class="block-title">확인 필요</span>
+      미션 수 표시: 집계 업데이트 시간대는 개발 확인 필요<br>
+    </div>
+  </div>
+
+  <!-- S03 -->
+  <div class="desc-list-item" id="list-S03" onclick="activate('S03')" onmouseenter="spot('S03')" onmouseleave="unspot()">
+    <span class="desc-list-num">_S03</span>
+    <span class="desc-list-name">트래픽 개요 (기간 필터 + 꺾은선 차트)</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-S03">
+    <div class="desc-id">EVENT_SUMMARY_03</div>
+    <div class="desc-name">트래픽 개요 (기간 필터 + 꺾은선 차트)</div>
+    <span class="tag tag-type">조회</span>
+    <span class="tag tag-ui">기간 선택 드롭다운 + 꺾은선 차트 + 범례</span>
+    <div class="desc-body">
+      이벤트 기간 중 날짜별 DT·PV·UV를 꺾은선 차트로 표시한다.
+      <ul>
+        <li><b>기간 필터 3종:</b> 7일(오늘 기준 최근 7일) / 한달(최근 30일) / 사용자 지정 기간</li>
+        <li>필터 범위와 이벤트 기간의 <b>교집합만</b> 표시 (이벤트 기간 밖 날짜 미표시)</li>
+        <li><b>DT</b>(체류시간) · <b>PV</b>(페이지뷰) · <b>UV</b>(순방문자수) — 세 지표가 엇갈리면 문제의 단서</li>
+      </ul>
+    </div>
+    <div class="info-block">
+      <span class="block-title">연동 고려사항</span>
+      기간 필터 변경 시 차트 · 이벤트 유입 현황 테이블 · 미션형 이벤트 지표 테이블 세 곳을 동시에 갱신한다.
+    </div>
+    <div class="warn-block">
+      <span class="block-title">Alert (사용자 지정 기간 선택시)</span>
+      시작일 &gt; 종료일 상태로 "적용" 클릭 → "시작일이 종료일보다 늦습니다. 날짜를 다시 확인해 주세요." [확인]<br>
+      조회 기간과 이벤트 기간 교집합 없음 → "선택한 기간에 데이터가 없습니다. 이벤트 기간 내 날짜를 선택해 주세요." [확인]
+    </div>
+  </div>
+
+  <!-- S04 -->
+  <div class="desc-list-item" id="list-S04" onclick="activate('S04')" onmouseenter="spot('S04')" onmouseleave="unspot()">
+    <span class="desc-list-num">_S04</span>
+    <span class="desc-list-name">이벤트 지표 (탭 + 테이블 + CSV)</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-S04">
+    <div class="desc-id">EVENT_SUMMARY_04</div>
+    <div class="desc-name">이벤트 지표 (탭 + 테이블 + CSV 다운로드)</div>
+    <span class="tag tag-type">조회</span>
+    <span class="tag tag-ui">섹션 헤더(타이틀 + Outline 버튼) + 탭 바 + 데이터 테이블</span>
+    <div class="desc-body">
+      "이벤트 지표" 타이틀과 CSV 다운로드 버튼이 같은 행에 배치(타이틀 좌측, 버튼 우측).
+      탭으로 두 가지 뷰를 전환한다.
+      <ul>
+        <li>
+          <b>탭 1 — 이벤트 유입 현황</b> (이벤트 노출·도달 관점)<br>
+          컬럼: 일자 / UV / PV / DT / 평균 접속 횟수<br>
+          상단에 기간 전체 합계 행(전체) 고정 노출, 날짜 내림차순 정렬
+        </li>
+        <li style="margin-top:5px">
+          <b>탭 2 — 미션형 이벤트 지표</b> (이벤트 참여·행동 관점)<br>
+          컬럼: 일자 / 타입 / 달성자 수(유니크) / 달성 횟수 / 보상 획득 유저 수(유니크) / 보상 지급 횟수<br>
+          날짜별 미션 타입 단위로 행 분리, 상단에 전체 집계 행 고정 노출
+        </li>
+      </ul>
+    </div>
+    <div class="warn-block">
+      CSV 다운로드 : 다운로드 시 선택한 기간 필터와 관계없이 이벤트 시작일부터 현재까지 누적된 전체 요약 데이터가 제공됩니다.<br>
+      CSV 파일은 monolake에서 볼 수 있는 파일로 제공됩니다.
+    </div>
+  </div>
+
+  <!-- ── EVENT_DETAIL ── -->
+  <div class="grp-divider"></div>
+  <div class="grp-title">EVENT_DETAIL · 이벤트 참여·리텐션 상세 지표</div>
+
+  <!-- D01 -->
+  <div class="desc-list-item" id="list-D01" onclick="activate('D01')" onmouseenter="spot('D01')" onmouseleave="unspot()">
+    <span class="desc-list-num">_D01</span>
+    <span class="desc-list-name">페이지 헤더 (이벤트 요약 뒤로가기)</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-D01">
+    <div class="desc-id">EVENT_DETAIL_01</div>
+    <div class="desc-name">페이지 헤더 (이벤트 요약 뒤로가기 버튼)</div>
+    <span class="tag tag-type">조회 · 네비게이션</span>
+    <span class="tag tag-ui">텍스트 타이틀 + Outline 버튼 (우측, 뒤로가기 아이콘 포함)</span>
+    <div class="desc-body">
+      "← 이벤트 요약" 버튼 클릭 시 이벤트 요약 페이지로 복귀한다.
+      <ul>
+        <li>단순 뒤로가기가 아닌 <b>"요약으로 돌아가 다른 이벤트를 볼 수 있다"</b>는 탐색 구조를 명시적으로 알려주는 역할</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- D02 -->
+  <div class="desc-list-item" id="list-D02" onclick="activate('D02')" onmouseenter="spot('D02')" onmouseleave="unspot()">
+    <span class="desc-list-num">_D02</span>
+    <span class="desc-list-name">이벤트 정보 카드</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-D02">
+    <div class="desc-id">EVENT_DETAIL_02</div>
+    <div class="desc-name">이벤트 정보 카드</div>
+    <span class="tag tag-type">조회</span>
+    <span class="tag tag-ui">카드 (읽기전용) · 인라인 상태 뱃지</span>
+    <div class="desc-body">
+      현재 조회 중인 이벤트의 기본 정보를 표시한다.
+      <ul>
+        <li>이벤트명 · 진행 상태 뱃지(진행중 / 종료 / 예정) · 이벤트 기간 · 미션 수</li>
+        <li>이벤트 기간·상태를 함께 보여 트래픽·지표 수치 해석의 <b>기준선</b> 제공</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- D03 -->
+  <div class="desc-list-item" id="list-D03" onclick="activate('D03')" onmouseenter="spot('D03')" onmouseleave="unspot()">
+    <span class="desc-list-num">_D03</span>
+    <span class="desc-list-name">유저군별 참여율 KPI 카드 (4종)</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-D03">
+    <div class="desc-id">EVENT_DETAIL_03</div>
+    <div class="desc-name">유저군별 참여율 KPI 카드 (4종)</div>
+    <span class="tag tag-type">조회</span>
+    <div class="desc-body">
+      Section 1(참여)의 최상단에 4개의 KPI 카드를 가로 배열로 표시.
+      각 카드: 참여율(%), 참여 유저수 / 전체 유저수.
+      <ul>
+        <li><b>00. 전체</b> — 전체 유저 기준 참여율</li>
+        <li><b>01. 기존</b> — 이벤트 이전부터 활성인 유저 (유지 효과 측정)</li>
+        <li><b>02. 복귀</b> — 이벤트 기간에 복귀한 유저 (재유입 효과 측정)</li>
+        <li><b>03. 신규</b> — 이벤트 기간에 처음 시작한 유저 (획득 효과 측정, 일반적으로 수치 낮음)</li>
+        <li>세부 테이블 진입 전 전체 그림을 먼저 인지하기 위해 최상단 배치</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- D04 -->
+  <div class="desc-list-item" id="list-D04" onclick="activate('D04')" onmouseenter="spot('D04')" onmouseleave="unspot()">
+    <span class="desc-list-num">_D04</span>
+    <span class="desc-list-name">유저군 × 레벨군별 참여율 테이블</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-D04">
+    <div class="desc-id">EVENT_DETAIL_04</div>
+    <div class="desc-name">유저군 × 레벨군별 참여율 테이블</div>
+    <span class="tag tag-type">조회</span>
+    <span class="tag tag-ui">계층형 데이터 테이블 (유저군 › 레벨군) · 인라인 바 차트</span>
+    <div class="desc-body">
+      유저군(기존/복귀/신규) × 레벨군(저/중/고레벨) 교차 조합별 참여율 테이블.
+      <ul>
+        <li><b>컬럼:</b> 유저군 / 레벨군 / 참여 유저수 / 미참여 / 전체 / 참여율(%) / 참여율 바 차트</li>
+        <li><b>레벨군:</b> 저레벨(Lv.1~40) / 중레벨(Lv.41~70) / 고레벨(Lv.71~90)</li>
+        <li>유저군 합계 행: 배경색 + 굵은 텍스트로 강조</li>
+        <li>바 차트를 숫자 옆에 병행 표시 → 레벨군 간 높낮이를 시각적으로 즉시 식별</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- D05 -->
+  <div class="desc-list-item" id="list-D05" onclick="activate('D05')" onmouseenter="spot('D05')" onmouseleave="unspot()">
+    <span class="desc-list-num">_D05</span>
+    <span class="desc-list-name">일평균 유저수 및 비율 카드</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-D05">
+    <div class="desc-id">EVENT_DETAIL_05</div>
+    <div class="desc-name">일평균 유저수 및 비율 카드</div>
+    <span class="tag tag-type">조회</span>
+    <span class="tag tag-ui">유저군별 카드 그룹 (3×3 그리드) · 최대 비율 카드 배경 강조</span>
+    <div class="desc-body">
+      유저군 3종 × 레벨군 3종 = 9개 카드를 그리드로 표시.
+      각 카드: 레벨군명 / 일평균 유저수 / 유저군 내 비율(%). 비율 최대 카드는 배경 강조.
+      <ul>
+        <li>D04 테이블과 <b>보완 관계</b>: 테이블은 정확한 수치 비교, 카드는 레벨 분포 직관 파악</li>
+        <li>테이블에서 특정 셀이 이상해 보이면 카드에서 그 유저군의 레벨 구성 확인</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- D06 -->
+  <div class="desc-list-item" id="list-D06" onclick="activate('D06')" onmouseenter="spot('D06')" onmouseleave="unspot()">
+    <span class="desc-list-num">_D06</span>
+    <span class="desc-list-name">일별 참여·미참여 유저 수 (접기/펼치기)</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-D06">
+    <div class="desc-id">EVENT_DETAIL_06</div>
+    <div class="desc-name">일별 참여·미참여 유저 수 (접기/펼치기 + CSV 내보내기)</div>
+    <span class="tag tag-type">조회</span>
+    <span class="tag tag-ui">접기/펼치기 헤더 (▶ 아이콘) + 계층형 데이터 테이블 + CSV 내보내기 버튼</span>
+    <div class="desc-body">
+      날짜 × 유저군 × 레벨군별 일별 참여/미참여/총합계 유저 수 테이블.
+      <ul>
+        <li><b>컬럼:</b> 날짜 / 유저군 / 레벨군 / 참여 / 미참여 / 총합계</li>
+        <li>날짜·유저군 셀은 rowspan으로 병합</li>
+        <li><b>기본 상태: 접힘</b> — 수백 행의 원시 데이터로 화면이 과도하게 길어지는 것 방지</li>
+        <li>CSV 파일명: <code>event-raw-data.csv</code></li>
+        <li>CSV 파일은 monolake에서 볼 수 있는 파일로 제공됩니다.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- D07 -->
+  <div class="desc-list-item" id="list-D07" onclick="activate('D07')" onmouseenter="spot('D07')" onmouseleave="unspot()">
+    <span class="desc-list-num">_D07</span>
+    <span class="desc-list-name">참여·미참여 리텐션 비교 (D+1/7/14)</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-D07">
+    <div class="desc-id">EVENT_DETAIL_07</div>
+    <div class="desc-name">참여·미참여 리텐션 비교 (D+1 / D+7 / D+14 탭)</div>
+    <span class="tag tag-type">조회</span>
+    <span class="tag tag-ui">D+n 탭 바 + 유저군 × 레벨군 3×3 그리드 (참여/미참여 바 차트 + 차이)</span>
+    <div class="desc-body">
+      이벤트 참여·미참여 유저의 리텐션을 유저군 × 레벨군별로 비교.
+      각 셀: 참여 리텐션 바 · 미참여 리텐션 바 · 차이(%p).
+      <ul>
+        <li><b>D+1</b> — 단기 점착도 (다음 날 즉각 재방문 유도했는가)</li>
+        <li><b>D+7</b> — 중기 리텐션 (일주일 단위 습관 형성에 기여했는가)</li>
+        <li><b>D+14</b> — 장기 습관화 (이벤트 종료 후에도 효과가 지속되는가)</li>
+        <li><b>빨간 강조(역전 현상):</b> 참여 리텐션 &lt; 미참여 리텐션 — 이벤트가 오히려 이탈을 유도했을 가능성. 주로 미션 난이도 과도하거나 보상 실망 시 발생</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- D08 -->
+  <div class="desc-list-item" id="list-D08" onclick="activate('D08')" onmouseenter="spot('D08')" onmouseleave="unspot()">
+    <span class="desc-list-num">_D08</span>
+    <span class="desc-list-name">일별 리텐션 곡선 + 코호트 수치 테이블</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-D08">
+    <div class="desc-id">EVENT_DETAIL_08</div>
+    <div class="desc-name">일별 리텐션 곡선 + 코호트 수치 테이블</div>
+    <span class="tag tag-type">조회</span>
+    <span class="tag tag-ui">유저군 선택 드롭다운 + 참여/미참여 토글 버튼 + 꺾은선 차트 (Canvas) + 코호트 수치 테이블</span>
+    <div class="desc-body">
+      D+00~D+14까지 15개 시점의 리텐션 변화를 꺾은선 차트로 표시.
+      <ul>
+        <li><b>유저군 드롭다운 11종:</b> 기존(전체/저/중/고레벨) · 복귀(전체/저/중/고레벨) · 신규(전체/저/중레벨, 고레벨 해당 없음)</li>
+        <li><b>참여/미참여 토글</b>로 표시할 라인 제어</li>
+        <li>곡선(흐름·급락 지점 파악) + 코호트 테이블(정확한 수치·보고서 참조)을 이중 제공</li>
+        <li>D07이 시점 단면 비교라면, D08은 <b>D+00→D+14 흐름 전체 추적</b></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- D09 -->
+  <div class="desc-list-item" id="list-D09" onclick="activate('D09')" onmouseenter="spot('D09')" onmouseleave="unspot()">
+    <span class="desc-list-num">_D09</span>
+    <span class="desc-list-name">유저군×레벨군별 일별 리텐션 (접기/펼치기)</span>
+    <span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-D09">
+    <div class="desc-id">EVENT_DETAIL_09</div>
+    <div class="desc-name">유저군 × 레벨군별 참여·미참여 유저의 일별 리텐션 (접기/펼치기 + CSV)</div>
+    <span class="tag tag-type">조회</span>
+    <span class="tag tag-ui">접기/펼치기 헤더 + 참여여부 셀렉트 + 계층형 데이터 테이블 + 날짜 정렬 + CSV 내보내기 버튼</span>
+    <div class="desc-body">
+      유저군 × 레벨군 × 날짜별 D+00~D+14 리텐션 테이블.
+      <ul>
+        <li><b>컬럼:</b> 유저군 / 레벨군 / 일자 / 접속유저수 / D+00~D+14 (15개 컬럼)</li>
+        <li><b>참여 여부 셀렉트:</b> 참여 / 미참여 전환 — 한 번에 하나의 관점에 집중</li>
+        <li><b>행 구조:</b> 유저군×레벨군별 "평균" 행이 날짜별 행보다 상단 노출 — 이상값 판단 기준선 역할</li>
+        <li><b>날짜 정렬:</b> 컬럼 클릭 시 오름/내림차순 전환 (기본: 내림차순)</li>
+        <li><b>기본 상태: 접힘.</b> CSV 파일명: <code>event-daily-ret-{참여|미참여}.csv</code></li>
+        <li><b>CSV 파일 제공:</b> monolake에서 볼 수 있는 파일로 제공됩니다.</li>
+      </ul>
+    </div>
+  </div>
+
+</div><!-- /.desc-panel -->
+</div><!-- /.layout -->
+
+<script>
+var frame = document.getElementById('protoFrame');
+var hlTimer = null;
+var currentPage = 'page-report';
+
+/* ── IFRAME_MAP ── */
+var IFRAME_MAP = {
+  'S01': { page: 'page-report', sel: '#page-report .rp-layout > div:nth-child(1)' },
+  'S02': { page: 'page-report', sel: '#page-report .rp-layout > div:nth-child(2)' },
+  'S03': { page: 'page-report', sel: '#page-report .rp-layout > div:nth-child(3)' },
+  'S04': { page: 'page-report', sel: '#page-report .rp-layout > div:nth-child(4)' },
+  'D01': { page: 'page-detail', sel: '#event-summary' },
+  'D02': { page: 'page-detail', sel: '#event-summary' },
+  'D03': { page: 'page-detail', sel: '#block-1-1-kpi' },
+  'D04': { page: 'page-detail', sel: '#block-1-2-and-1-3' },
+  'D05': { page: 'page-detail', sel: '#block-1-3-sample-cards' },
+  'D06': { page: 'page-detail', sel: '#card-1-3-raw-table' },
+  'D07': { page: 'page-detail', sel: '#card-2-1-retention-hero' },
+  'D08': { page: 'page-detail', sel: '#card-2-2-retention-curve' },
+  'D09': { page: 'page-detail', sel: '#card-2-3-daily-ret' }
+};
+
+/* ── proto로 메시지 전송 ── */
+function postToProto(msg) {
+  try { frame.contentWindow.postMessage(msg, '*'); } catch(e) {}
+}
+
+/* ── iframe 연동 (페이지 전환 + 스크롤 + 강조) ── */
+function syncIframe(id, isHover) {
+  var mapping = IFRAME_MAP[id];
+  if (!mapping) return;
+
+  /* hover: 현재 보이는 페이지와 다르면 생략 (페이지 강제 전환 방지) */
+  if (isHover && mapping.page !== currentPage) return;
+
+  /* 클릭: 페이지 전환 */
+  if (!isHover) {
+    postToProto({ type: 'spec-show-page', page: mapping.page });
+    currentPage = mapping.page;
+  }
+
+  if (!mapping.sel) return;
+
+  /* 이전 자동 해제 타이머 취소 */
+  if (hlTimer) { clearTimeout(hlTimer); hlTimer = null; }
+
+  /* 기존 강조 제거 */
+  postToProto({ type: 'spec-unhighlight' });
+
+  var delay = isHover ? 0 : 180;
+  setTimeout(function() {
+    postToProto({ type: 'spec-highlight', sel: mapping.sel, scroll: !isHover });
+
+    /* 클릭 시 2초 후 강조 자동 해제 */
+    if (!isHover) {
+      hlTimer = setTimeout(function() {
+        postToProto({ type: 'spec-unhighlight' });
+        hlTimer = null;
+      }, 2000);
+    }
+  }, delay);
+}
+
+/* ── 우측 패널 activate (클릭) ── */
+function activate(id) {
+  document.querySelectorAll('.desc-list-item').forEach(function(i) { i.classList.remove('active'); });
+  var listItem = document.getElementById('list-' + id);
+  if (listItem) listItem.classList.add('active');
+
+  var detail = document.getElementById('desc-' + id);
+  var isOpen = detail && detail.classList.contains('active');
+  document.querySelectorAll('.desc-detail').forEach(function(d) { d.classList.remove('active'); });
+  if (detail && !isOpen) {
+    detail.classList.add('active');
+    if (listItem) listItem.scrollIntoView({ block: 'nearest' });
+  }
+  if (isOpen && listItem) listItem.classList.remove('active');
+
+  syncIframe(id, false);
+}
+
+/* ── hover → 강조 ── */
+function spot(id) { syncIframe(id, true); }
+function unspot() { postToProto({ type: 'spec-unhighlight' }); }
+
+/* ── iframe 로드 완료 ── */
+frame.addEventListener('load', function() { currentPage = 'page-report'; });
+</script>
+</body>
+</html>

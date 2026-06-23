@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>이벤트 보고</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; font-size: 13px; }
+
+:root {
+  --c-existing:#2563EB; --c-return:#FFC03D; --c-new:#2DB267;
+  --c-existing-l:#93C5FD; --c-return-l:#FFDF75; --c-new-l:#94D8B2;
+  --c-low:#E2E8F0; --c-mid:#94A3B8; --c-high:#475569;
+  --c-warn:#F97316; --c-warn-bg:#FFF7ED;
+  --c-participate:#3B82F6; --c-nonpart:#CBD5E1;
+  --radius:8px; --shadow:0 1px 4px rgba(0,0,0,.08);
+}
+
+/* ── PAGE SWITCH ── */
+.page-view { display: none; min-height: 100vh; }
+.page-view.active { display: block; }
+
+/* ══════════════════════════════════════════
+   PAGE: REPORT
+══════════════════════════════════════════ */
+#page-report { background: #f0f2f5; color: #222; }
+#page-report .rp-layout { max-width: 1500px; margin: 0 auto; padding: 24px 24px 48px; display: flex; flex-direction: column; gap: 16px; }
+#page-report .card { background: #fff; border-radius: 8px; border: 1px solid #e6e6e4; padding: 24px 28px; }
+#page-report .event-summary { font-size: 12px; color: #999; margin-bottom: 12px; }
+#page-report .event-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+#page-report .event-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+#page-report .event-title { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+#page-report .badge { display: inline-flex; align-items: center; font-size: 11px; padding: 2px 10px; border-radius: 100px; font-weight: 500; }
+#page-report .badge-ongoing { background: #eef0fd; color: #4b5cf0; border: 1px solid #c7ccf9; }
+#page-report .badge-ended   { background: #f2f2f2; color: #888;    border: 1px solid #ddd; }
+#page-report .badge-upcoming{ background: #fff8e6; color: #b07800; border: 1px solid #f0d980; }
+#page-report .event-meta { display: flex; align-items: center; gap: 14px; font-size: 12px; color: #888; }
+#page-report .event-meta-item { display: flex; align-items: center; gap: 5px; }
+#page-report .meta-icon { display: flex; align-items: center; }
+#page-report .btn-primary {
+  display: flex; align-items: center; gap: 6px;
+  height: 31px; padding: 0 18px; border-radius: 6px;
+  background: #4b5cf0; color: #fff;
+  border: none; cursor: pointer; font-size: 12px; font-weight: 500;
+  white-space: nowrap; flex-shrink: 0; transition: background 0.15s;
+}
+#page-report .btn-primary:hover { background: #3a4bde; }
+#page-report .btn-outline {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 6px;
+  background: #fff; color: #4b5cf0;
+  border: 1px solid #c7ccf9; cursor: pointer; font-size: 12px; font-weight: 500;
+  white-space: nowrap; flex-shrink: 0; transition: background 0.15s;
+}
+#page-report .btn-outline:hover { background: #f5f6fe; }
+#page-report .btn-outline svg { width: 13px; height: 13px; }
+#page-report .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+#page-report .section-title { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+#page-report .date-filter-wrap { position: relative; }
+#page-report .date-select-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 6px; font-size: 12px;
+  border: 1px solid #d8d8d6; background: #fff;
+  color: #333; cursor: pointer; transition: border-color 0.12s; white-space: nowrap;
+}
+#page-report .date-select-btn:hover { border-color: #aaa; }
+#page-report .date-select-btn svg { flex-shrink: 0; }
+#page-report .date-dropdown {
+  display: none; position: absolute; right: 0; top: calc(100% + 4px); z-index: 20;
+  background: #fff; border: 1px solid #ddd; border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.10); min-width: 140px; overflow: hidden;
+}
+#page-report .date-dropdown.open { display: block; }
+#page-report .dropdown-item { padding: 9px 16px; font-size: 13px; color: #333; cursor: pointer; transition: background 0.1s; }
+#page-report .dropdown-item:hover { background: #f5f5f5; }
+#page-report .dropdown-item.active { color: #4b5cf0; font-weight: 500; background: #f5f6fe; }
+#page-report .date-input-row {
+  display: none; align-items: center; gap: 8px;
+  margin-top: 12px; padding: 10px 14px;
+  background: #f8f8f8; border-radius: 6px; border: 1px solid #e8e8e6;
+}
+#page-report .date-input-row.open { display: flex; }
+#page-report .date-input-row input[type=date] {
+  font-size: 12px; padding: 5px 8px; border-radius: 6px;
+  border: 1px solid #d0d0d0; background: #fff; color: #222;
+}
+#page-report .date-input-row span { font-size: 12px; color: #999; }
+#page-report .btn-apply { padding: 5px 16px; border-radius: 6px; font-size: 12px; background: #4b5cf0; color: #fff; border: none; cursor: pointer; }
+#page-report .chart-wrap { height: 200px; }
+#page-report canvas#trafficChart { width: 100% !important; height: 100% !important; display: block; }
+#page-report .chart-legend { display: flex; align-items: center; gap: 20px; justify-content: center; margin-top: 14px; font-size: 11px; color: #888; }
+#page-report .legend-item { display: flex; align-items: center; gap: 5px; }
+#page-report .legend-line { width: 18px; height: 2px; border-radius: 2px; position: relative; display: flex; align-items: center; justify-content: center; }
+#page-report .legend-line::after { content: ''; position: absolute; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid currentColor; background: #fff; }
+#page-report .tab-bar { display: flex; gap: 0; border-bottom: 1px solid #e6e6e4; margin-bottom: 0; }
+#page-report .tab { padding: 8px 18px; font-size: 13px; cursor: pointer; color: #888; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.12s, border-color 0.12s; }
+#page-report .tab:hover { color: #444; }
+#page-report .tab.active { color: #4b5cf0; border-bottom-color: #4b5cf0; font-weight: 500; }
+#page-report .table-wrap { overflow-x: auto; margin-top: 0; }
+#page-report .data-table { width: 100%; border-collapse: collapse; }
+#page-report .data-table th { font-size: 12px; font-weight: 500; color: #888; padding: 12px 20px; text-align: left; border-bottom: 1px solid #ebebea; white-space: nowrap; background: #fff; }
+#page-report .data-table th.num { text-align: right; }
+#page-report .data-table td { font-size: 12px; color: #333; padding: 11px 20px; border-bottom: 1px solid #f0f0ee; }
+#page-report .data-table tr:last-child td { border-bottom: none; }
+#page-report .data-table tr.total-row td { font-weight: 500; color: #4b5cf0; background: #f5f6fe; }
+#page-report .data-table tr:not(.total-row):hover td { background: #fafafa; }
+#page-report .data-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+#page-report .data-table td.date-cell { color: #aaa; font-size: 11px; }
+#page-report .mission-type { font-size: 12px; color: #333; line-height: 1.5; }
+
+/* ══════════════════════════════════════════
+   PAGE: DETAIL
+══════════════════════════════════════════ */
+#page-detail { background: #F8FAFC; color: #1E293B; }
+#page-detail .page { max-width: 1500px; margin: 0 auto; padding: 24px 24px 48px; }
+#page-detail .section { margin-bottom: 60px; }
+#page-detail .section-title { font-size: 16px; font-weight: 700; color: #0F172A; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #CBD5E1; }
+#page-detail .card { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+#page-detail .card-title { font-size: 13px; font-weight: 700; color: #1E293B; padding-bottom: 10px; margin-bottom: 14px; border-bottom: 2px solid #E2E8F0; }
+#page-detail .card-grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+#page-detail .kpi-card .kpi-label { font-size: 11px; color: #64748B; margin-bottom: 6px; font-weight: 600; }
+#page-detail .kpi-card .kpi-value { font-size: 28px; font-weight: 800; }
+#page-detail .kpi-card.c-all   { border-top: 3px solid #475569; }
+#page-detail .kpi-card.c-all   .kpi-value { color: #475569; }
+#page-detail .kpi-card.c-exist { border-top: 3px solid var(--c-existing); }
+#page-detail .kpi-card.c-exist .kpi-value { color: var(--c-existing); }
+#page-detail .kpi-card.c-ret   { border-top: 3px solid var(--c-return); }
+#page-detail .kpi-card.c-ret   .kpi-value { color: var(--c-return); }
+#page-detail .kpi-card.c-new   { border-top: 3px solid var(--c-new); }
+#page-detail .kpi-card.c-new   .kpi-value { color: var(--c-new); }
+#page-detail .tbl-wrap { overflow-x: auto; }
+#page-detail table { width: 100%; border-collapse: collapse; font-size: 12px; }
+#page-detail #card-1-2-participation-table table { height: 100%; }
+#page-detail #card-1-2-participation-table tbody { height: 100%; }
+#page-detail #card-1-2-participation-table tbody tr { height: 1px; }
+#page-detail th { background: #F1F5F9; color: #475569; font-weight: 600; padding: 8px 10px; text-align: left; border-bottom: 1px solid #E2E8F0; white-space: nowrap; }
+#page-detail td { padding: 7px 10px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }
+#page-detail tr:hover td { background: #F8FAFC; }
+#page-detail #t-raw tr:hover td[rowspan] { background: transparent; }
+#page-detail .group-header td { background: #F8FAFC; font-weight: 700; font-size: 11px; color: #475569; }
+#page-detail .bar-cell { display: flex; align-items: center; gap: 6px; min-width: 120px; }
+#page-detail .bar-bg { flex: 1; height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden; }
+#page-detail .bar-fill { height: 100%; border-radius: 4px; }
+#page-detail .bar-val { font-size: 11px; color: #475569; white-space: nowrap; min-width: 36px; text-align: right; }
+#page-detail .warn-icon { display: inline-flex; align-items: center; gap: 3px; color: var(--c-warn); font-size: 11px; }
+#page-detail .warn-icon::before { content: "⚠"; }
+#page-detail td.warn-cell { background: var(--c-warn-bg); color: #92400E; }
+#page-detail td.na-cell { background: #F1F5F9; color: #94A3B8; font-style: italic; }
+#page-detail .sample-cards { margin-top: 0; }
+#page-detail .sample-cards-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+#page-detail .sample-card .sc-title { font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px; }
+#page-detail .sc-title { margin-bottom: 20px; font-weight: 700; }
+#page-detail .sc-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+#page-detail .sc-item { background: #F8FAFC; border-radius: 6px; padding: 14px 16px; }
+#page-detail .sc-item .sc-lv { font-size: 10px; color: #94A3B8; margin-bottom: 8px; }
+#page-detail .sc-item .sc-num { font-size: 14px; font-weight: 700; color: #1E293B; margin-bottom: 6px; }
+#page-detail .sc-item .sc-pct { font-size: 10px; color: #64748B; }
+#page-detail .sc-item.warn-bg { background: var(--c-warn-bg); }
+#page-detail .sc-item.na-bg { background: #F1F5F9; color: #94A3B8; }
+#page-detail .side-layout { display: grid; grid-template-columns: 1fr 260px; gap: 12px; align-items: start; }
+#page-detail .hero-title { background: #1E293B; color: #fff; padding: 10px 14px; border-radius: var(--radius) var(--radius) 0 0; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+#page-detail .hero-title .hero-badge { background: #3B82F6; color: #fff; border-radius: 4px; padding: 1px 6px; font-size: 10px; }
+#page-detail .hero-body { padding: 16px; }
+#page-detail .day-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+#page-detail .day-tab { border: 1px solid #CBD5E1; border-radius: 6px; padding: 4px 14px; font-size: 12px; font-weight: 600; cursor: pointer; background: #F8FAFC; }
+#page-detail .day-tab.active { background: #2563EB; color: #fff; border-color: #2563EB; }
+#page-detail .ret-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+#page-detail .ret-cell { border: 1px solid #E2E8F0; border-radius: 6px; padding: 10px; }
+#page-detail .ret-cell.warn { border-color: var(--c-warn); background: var(--c-warn-bg); }
+#page-detail .ret-cell.na-cell-block { background: #F1F5F9; display: flex; align-items: center; justify-content: center; color: #94A3B8; font-size: 11px; }
+#page-detail .ret-cell-head { font-size: 10px; font-weight: 600; color: #64748B; margin-bottom: 8px; }
+#page-detail .ret-bar-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+#page-detail .ret-bar-label { width: 36px; font-size: 10px; color: #475569; }
+#page-detail .ret-bar-outer { flex: 1; height: 10px; background: #E2E8F0; border-radius: 5px; overflow: hidden; }
+#page-detail .ret-bar-inner { height: 100%; border-radius: 5px; }
+#page-detail .ret-bar-pct { font-size: 11px; font-weight: 600; min-width: 38px; text-align: right; }
+#page-detail .ret-diff { font-size: 11px; color: #10B981; font-weight: 700; margin-top: 4px; }
+#page-detail .ret-diff.neg { color: #EF4444; }
+#page-detail .ug-header { font-size: 11px; font-weight: 800; color: #64748B; padding: 8px 0 4px; border-bottom: 1px solid #E2E8F0; margin-bottom: 8px; margin-top: 20px; }
+#page-detail .ug-header:first-child { margin-top: 0; }
+#page-detail .curve-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+#page-detail .curve-controls label { font-size: 11px; font-weight: 600; color: #475569; }
+#page-detail .curve-controls select { border: 1px solid #CBD5E1; border-radius: 6px; padding: 4px 8px; font-size: 11px; }
+#page-detail .toggle-group { display: flex; gap: 4px; }
+#page-detail .toggle-btn { border: 1px solid #CBD5E1; border-radius: 6px; padding: 3px 10px; font-size: 11px; cursor: pointer; background: #F8FAFC; }
+#page-detail .toggle-btn.active { background: #1E293B; color: #fff; border-color: #1E293B; }
+#page-detail .curve-layout { display: grid; grid-template-columns: 1fr 360px; gap: 12px; align-items: start; }
+#page-detail .curve-canvas-wrap { position: relative; height: 280px; }
+#page-detail .cohort-table th, #page-detail .cohort-table td { padding: 0 8px; font-size: 11px; height: 30px; }
+#page-detail .cohort-table td { border-bottom: 1px solid #F1F5F9; }
+#page-detail .collapsible-header { display: flex; align-items: center; gap: 8px; cursor: pointer; border-left: 4px solid #94A3B8; padding-left: 12px; margin-bottom: 0; }
+#page-detail .collapsible-header h2 { font-size: 16px; font-weight: 700; color: #64748B; }
+#page-detail .collapsible-header .toggle-arrow { font-size: 14px; color: #94A3B8; transition: transform .2s; }
+#page-detail .collapsible-header.open .toggle-arrow { transform: rotate(180deg); }
+#page-detail .collapsible-body { display: none; margin-top: 12px; }
+#page-detail .collapsible-body.open { display: block; }
+#page-detail .export-btn { border: 1px solid #CBD5E1; border-radius: 6px; padding: 5px 12px; font-size: 12px; cursor: pointer; background: #F8FAFC; color: #475569; float: right; margin-bottom: 8px; }
+#page-detail .export-btn:hover { background: #E2E8F0; }
+#page-detail .daily-ret-header { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 0 10px; border-bottom: 1px solid #E2E8F0; margin-bottom: 0; user-select: none; }
+#page-detail .daily-ret-header .dr-arrow { font-size: 12px; color: #94A3B8; transition: transform .2s; flex-shrink: 0; }
+#page-detail .daily-ret-header.open .dr-arrow { transform: rotate(90deg); }
+#page-detail .daily-ret-body { display: none; margin-top: 12px; }
+#page-detail .daily-ret-body.open { display: block; }
+#page-detail .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+#page-detail .legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #475569; }
+#page-detail .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+#page-detail .legend-line { width: 16px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+#page-detail .legend-dashed { background: repeating-linear-gradient(90deg,#94A3B8 0 4px,transparent 4px 7px); }
+#page-detail .info-note { background: #EFF6FF; border-left: 3px solid #3B82F6; border-radius: 0 6px 6px 0; padding: 8px 12px; font-size: 11px; color: #1E40AF; margin-bottom: 12px; }
+
+@media (max-width: 900px) {
+  #page-detail .card-grid-4 { grid-template-columns: repeat(2,1fr); }
+  #page-detail .ret-grid { grid-template-columns: repeat(2,1fr); }
+  #page-detail .curve-layout { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     PAGE: REPORT (이벤트 요약)
+══════════════════════════════════════════ -->
+<div id="page-report" class="page-view active">
+<div class="rp-layout">
+
+  <!-- 헤더 -->
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <span style="font-size:18px;font-weight:600;color:#1a1a1a;">이벤트 요약</span>
+    <button class="btn-primary" onclick="showPage('page-detail')">
+      상세 지표 보기 →
+    </button>
+  </div>
+
+  <!-- 이벤트 카드 -->
+  <div class="card">
+    <div class="event-header">
+      <div>
+        <div class="event-title-row">
+          <span class="event-title">주사위 0611 노출조건 테스트</span>
+          <span class="badge badge-ongoing">진행중</span>
+        </div>
+        <div class="event-meta">
+          <div class="event-meta-item">
+            <span class="meta-icon">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#aaa" stroke-width="1.3">
+                <rect x="1" y="2" width="12" height="11" rx="2"/>
+                <path d="M1 5.5h12M4.5 1v3M9.5 1v3"/>
+              </svg>
+            </span>
+            <span>2026. 06. 11 ~ 2026. 06. 29</span>
+          </div>
+          <div class="event-meta-item">
+            <span class="meta-icon">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#aaa" stroke-width="1.3">
+                <rect x="1" y="2.5" width="12" height="9" rx="2"/>
+                <circle cx="4.5" cy="6.5" r="1.5"/>
+                <path d="M7.5 6h3M7.5 8.5h3"/>
+              </svg>
+            </span>
+            <span>98</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 트래픽 개요 -->
+  <div class="card">
+    <div class="section-header">
+      <span class="section-title">트래픽 개요</span>
+      <div class="date-filter-wrap">
+        <button class="date-select-btn" id="dateSelectBtn" onclick="toggleDropdown()">
+          <span id="dateSelectLabel">7일</span>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#888" stroke-width="1.5">
+            <path d="M2 3.5l3 3 3-3"/>
+          </svg>
+        </button>
+        <div class="date-dropdown" id="dateDropdown">
+          <div class="dropdown-item active" id="opt-7d"     onclick="selectDateOpt('7d')">7일</div>
+          <div class="dropdown-item"        id="opt-30d"    onclick="selectDateOpt('30d')">한달</div>
+          <div class="dropdown-item"        id="opt-custom" onclick="selectDateOpt('custom')">사용자 지정 기간</div>
+        </div>
+      </div>
+    </div>
+    <div class="date-input-row" id="dateInputRow">
+      <input type="date" id="startDate" value="2026-06-13">
+      <span>~</span>
+      <input type="date" id="endDate" value="2026-06-19">
+      <button class="btn-apply" onclick="applyCustomDate()">적용</button>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="trafficChart"></canvas>
+    </div>
+    <div class="chart-legend">
+      <div class="legend-item">
+        <div class="legend-line" style="background:#9b8fea;color:#9b8fea;"></div> DT
+      </div>
+      <div class="legend-item">
+        <div class="legend-line" style="background:#5aba8a;color:#5aba8a;"></div> PV
+      </div>
+      <div class="legend-item">
+        <div class="legend-line" style="background:#5b9cf6;color:#5b9cf6;"></div> UV
+      </div>
+    </div>
+  </div>
+
+  <!-- 이벤트 지표 -->
+  <div class="card" style="padding:24px 0 0;">
+    <div style="padding:0 28px 16px;display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:14px;font-weight:600;color:#1a1a1a;">이벤트 지표</span>
+      <button class="btn-outline" onclick="alert('이벤트 지표 CSV 다운로드')">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M8 2v8M5 7l3 3 3-3M3 12h10"/>
+        </svg>
+        CSV 다운로드
+      </button>
+    </div>
+    <div class="tab-bar" style="padding:0 28px;">
+      <div class="tab active" id="tab-btn-tab1" onclick="activateTab('tab1')">이벤트 유입 현황</div>
+      <div class="tab" id="tab-btn-tab2" onclick="activateTab('tab2')">미션형 이벤트 지표</div>
+    </div>
+    <div id="tab-content-tab1" class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>일자</th>
+            <th class="num">UV</th>
+            <th class="num">PV</th>
+            <th class="num">DT</th>
+            <th class="num">평균 접속 횟수</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyInflow"></tbody>
+      </table>
+    </div>
+    <div id="tab-content-tab2" class="table-wrap" style="display:none">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>일자</th>
+            <th>타입</th>
+            <th class="num">달성자 수 (유니크)</th>
+            <th class="num">달성 횟수</th>
+            <th class="num">보상 획득 유저 수 (유니크)</th>
+            <th class="num">보상 지급 횟수</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyMission"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</div><!-- /#page-report -->
+
+
+<!-- ══════════════════════════════════════════
+     PAGE: DETAIL (이벤트 상세 지표)
+══════════════════════════════════════════ -->
+<div id="page-detail" class="page-view">
+<div class="page">
+
+  <!-- 이벤트 요약 헤더 -->
+  <div id="event-summary" style="margin-bottom:28px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-size:18px;font-weight:700;color:#0F172A;">이벤트 참여·리텐션 상세 지표</div>
+      <button onclick="showPage('page-report')" style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#475569;background:#fff;border:1px solid #CBD5E1;border-radius:6px;padding:6px 12px;cursor:pointer;">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2L3 6.5 8 11" stroke="#64748B" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        이벤트 요약
+      </button>
+    </div>
+    <div class="card" style="padding:24px 28px;height:100px;display:flex;flex-direction:column;justify-content:center;border:1px solid #e6e6e4;box-shadow:none;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:16px;font-weight:600;color:#1a1a1a;">주사위 0611 노출조건 테스트</span>
+        <span style="font-size:11px;font-weight:500;color:#4b5cf0;background:#eef0fd;border:1px solid #c7ccf9;border-radius:100px;padding:2px 10px;">진행중</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;font-size:12px;color:#888;">
+        <span style="display:flex;align-items:center;gap:5px;">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#aaa" stroke-width="1.3"><rect x="1" y="2" width="12" height="11" rx="2"/><path d="M1 5.5h12M4.5 1v3M9.5 1v3"/></svg>
+          2026. 06. 11 ~ 2026. 06. 29
+        </span>
+        <span style="display:flex;align-items:center;gap:5px;">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#aaa" stroke-width="1.3"><rect x="1" y="2.5" width="12" height="9" rx="2"/><circle cx="4.5" cy="6.5" r="1.5"/><path d="M7.5 6h3M7.5 8.5h3"/></svg>
+          98
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: 참여 -->
+  <div id="section-1-participation" class="section">
+    <div class="section-title">참여</div>
+    <div id="block-1-1-kpi" class="card" style="margin-bottom:20px">
+      <div class="card-title">유저군별 참여율</div>
+      <div class="card-grid-4">
+        <div id="kpi-total" class="card kpi-card c-all">
+          <div class="kpi-label">00. 전체</div>
+          <div class="kpi-value">57.2%</div>
+          <div style="font-size:11px;color:#94A3B8;margin-top:4px">501,241 / 875,648명</div>
+        </div>
+        <div id="kpi-existing" class="card kpi-card c-exist">
+          <div class="kpi-label">01. 기존</div>
+          <div class="kpi-value">73.9%</div>
+          <div style="font-size:11px;color:#94A3B8;margin-top:4px">477,850 / 646,875명</div>
+        </div>
+        <div id="kpi-return" class="card kpi-card c-ret">
+          <div class="kpi-label">02. 복귀</div>
+          <div class="kpi-value">49.1%</div>
+          <div style="font-size:11px;color:#94A3B8;margin-top:4px">195,514 / 398,584명</div>
+        </div>
+        <div id="kpi-new" class="card kpi-card c-new">
+          <div class="kpi-label">03. 신규</div>
+          <div class="kpi-value">19.5%</div>
+          <div style="font-size:11px;color:#94A3B8;margin-top:4px">37,322 / 191,370명</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:grid;grid-template-columns:1fr 450px;column-gap:12px;margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:0">유저군 × 레벨군별 참여율</div>
+        <div class="card-title" style="margin-bottom:0">일평균 유저수 및 비율</div>
+      </div>
+      <div id="block-1-2-and-1-3" style="display:grid;grid-template-columns:1fr 450px;column-gap:12px;align-items:stretch">
+        <div>
+          <div id="card-1-2-participation-table" class="card" style="height:100%;display:flex;flex-direction:column;box-sizing:border-box">
+            <div class="tbl-wrap" style="flex:1;overflow-y:auto;height:0">
+              <table id="t-participation">
+                <thead>
+                  <tr>
+                    <th>유저군</th><th>레벨군</th>
+                    <th style="text-align:right">참여 유저수</th>
+                    <th style="text-align:right">미참여</th>
+                    <th style="text-align:right">전체</th>
+                    <th colspan="2">참여율</th>
+                  </tr>
+                </thead>
+                <tbody id="t-part-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div id="block-1-3-sample-cards" class="sample-cards">
+          <div class="card" style="padding:16px">
+            <div class="sample-cards-grid">
+              <div id="card-1-3-existing" class="card">
+                <div class="sc-title" style="color:#64748B">01. 기존</div>
+                <div class="sc-grid">
+                  <div class="sc-item"><div class="sc-lv">저레벨</div><div class="sc-num">4,676</div><div class="sc-pct">일평균 · 2.0%</div></div>
+                  <div class="sc-item"><div class="sc-lv">중레벨</div><div class="sc-num">22,600</div><div class="sc-pct">일평균 · 9.9%</div></div>
+                  <div class="sc-item" style="background:#EFF6FF"><div class="sc-lv">고레벨</div><div class="sc-num" style="color:var(--c-existing)">201,731</div><div class="sc-pct">일평균 · <b>88.1%</b></div></div>
+                </div>
+              </div>
+              <div id="card-1-3-return" class="card">
+                <div class="sc-title" style="color:#64748B">02. 복귀</div>
+                <div class="sc-grid">
+                  <div class="sc-item"><div class="sc-lv">저레벨</div><div class="sc-num">511</div><div class="sc-pct">일평균 · 16.7%</div></div>
+                  <div class="sc-item"><div class="sc-lv">중레벨</div><div class="sc-num">1,069</div><div class="sc-pct">일평균 · 34.9%</div></div>
+                  <div class="sc-item" style="background:#FFFBEB"><div class="sc-lv">고레벨</div><div class="sc-num" style="color:var(--c-return)">1,482</div><div class="sc-pct">일평균 · <b>48.4%</b></div></div>
+                </div>
+              </div>
+              <div id="card-1-3-new" class="card">
+                <div class="sc-title" style="color:#64748B">03. 신규</div>
+                <div class="sc-grid">
+                  <div class="sc-item" style="background:#F0FDF4"><div class="sc-lv">저레벨</div><div class="sc-num" style="color:var(--c-new)">654</div><div class="sc-pct">일평균 · <b>99.3%</b></div></div>
+                  <div class="sc-item"><div class="sc-lv">중레벨</div><div class="sc-num">4</div><div class="sc-pct">일평균 · 0.7%</div></div>
+                  <div class="sc-item"><div class="sc-lv">고레벨</div><div class="sc-num">0</div><div class="sc-pct">일평균 · 0.0%</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="card-1-3-raw-table" class="card" style="margin-top:20px">
+      <div class="daily-ret-header" id="raw-header">
+        <span class="dr-arrow">▶</span>
+        <span style="font-size:13px;font-weight:700;color:#1E293B">일별 참여·미참여 유저 수</span>
+        <div style="margin-left:auto" onclick="event.stopPropagation()">
+          <button id="csv-btn" class="export-btn" style="float:none;margin:0">CSV 내보내기</button>
+        </div>
+      </div>
+      <div class="daily-ret-body" id="raw-body" style="height:1000px;display:none;flex-direction:column">
+        <div class="tbl-wrap" style="flex:1;overflow-y:auto;height:0;margin-top:12px">
+          <table id="t-raw">
+            <thead>
+              <tr>
+                <th>날짜</th><th>유저군</th><th>레벨군</th>
+                <th style="text-align:right">참여</th>
+                <th style="text-align:right">미참여</th>
+                <th style="text-align:right">총합계</th>
+              </tr>
+            </thead>
+            <tbody id="t-raw-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div><!-- /section-1 -->
+
+  <!-- SECTION 2: 리텐션 -->
+  <div id="section-2-retention" class="section">
+    <div class="section-title">리텐션</div>
+    <div id="card-2-1-retention-hero" class="card" style="margin-bottom:20px">
+      <div class="card-title">참여 · 미참여 리텐션 비교</div>
+      <div class="hero-body">
+        <div class="day-tabs">
+          <div class="day-tab active" data-d="d1">D+1</div>
+          <div class="day-tab" data-d="d7">D+7</div>
+          <div class="day-tab" data-d="d14">D+14</div>
+        </div>
+        <div id="ret-grid-container"></div>
+      </div>
+    </div>
+    <div id="card-2-2-retention-curve" class="card">
+      <div class="card-title">일별 리텐션 곡선 (D+00 ~ D+14)</div>
+      <div class="curve-controls">
+        <label>유저군</label>
+        <select id="curve-ug">
+          <option value="exist-all">기존 — 전체 평균</option>
+          <option value="exist-low">기존 — 저레벨</option>
+          <option value="exist-mid">기존 — 중레벨</option>
+          <option value="exist-high">기존 — 고레벨</option>
+          <option value="ret-all">복귀 — 전체 평균</option>
+          <option value="ret-low">복귀 — 저레벨</option>
+          <option value="ret-mid">복귀 — 중레벨</option>
+          <option value="ret-high">복귀 — 고레벨</option>
+          <option value="new-all">신규 — 전체 평균</option>
+          <option value="new-low">신규 — 저레벨</option>
+          <option value="new-mid">신규 — 중레벨</option>
+        </select>
+        <div class="toggle-group">
+          <div class="toggle-btn active" data-t="part">참여</div>
+          <div class="toggle-btn active" data-t="nonpart">미참여</div>
+        </div>
+      </div>
+      <div class="curve-canvas-wrap">
+        <canvas id="curve-chart"></canvas>
+      </div>
+      <div id="block-2-2-cohort-table" style="margin-top:16px">
+        <div class="tbl-wrap">
+          <table class="cohort-table" id="t-cohort">
+            <thead id="t-cohort-head"></thead>
+            <tbody id="t-cohort-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div id="card-2-3-daily-ret" class="card" style="margin-top:20px">
+      <div class="daily-ret-header" id="daily-ret-header">
+        <span class="dr-arrow">▶</span>
+        <span style="font-size:13px;font-weight:700;color:#1E293B">[유저군 × 레벨군별 참여·미참여 유저의 일별 리텐션]</span>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px" onclick="event.stopPropagation()">
+          <span style="font-size:12px;color:#64748B;font-weight:600">참여 여부</span>
+          <select id="daily-ret-part-sel" style="font-size:12px;padding:4px 8px;border:1px solid #E2E8F0;border-radius:6px;color:#1E293B">
+            <option value="part">참여</option>
+            <option value="nonpart">미참여</option>
+          </select>
+          <button id="daily-ret-csv-btn" class="export-btn" style="float:none;margin:0">CSV 내보내기</button>
+        </div>
+      </div>
+      <div class="daily-ret-body" id="daily-ret-body" style="height:1000px;display:none;flex-direction:column">
+        <div class="tbl-wrap" style="flex:1;overflow-y:auto;overflow-x:auto;height:0;margin-top:12px">
+          <table id="t-daily-ret" style="width:100%;table-layout:fixed">
+            <thead id="t-daily-ret-head"></thead>
+            <tbody id="t-daily-ret-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div><!-- /#page-detail -->
+
+<script>
+// ══════════════════════════════════════════
+// PAGE SWITCH
+// ══════════════════════════════════════════
+let detailInitialized = false;
+
+function showPage(id) {
+  document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'page-report') {
+    setTimeout(() => renderAll(), 50);
+  }
+  if (id === 'page-detail') {
+    if (!detailInitialized) {
+      detailInitialized = true;
+      buildPartTable();
+      buildRetGrid('d1');
+      buildRaw();
+      buildCurve();
+      buildDailyRet();
+    } else {
+      setTimeout(() => buildCurve(), 50);
+    }
+  }
+}
+
+// ══════════════════════════════════════════
+// REPORT: Mock 데이터
+// ══════════════════════════════════════════
+const EVENT_START = '2026-06-11';
+const EVENT_END   = '2026-06-29';
+
+const MISSION_TYPES = [
+  '누적 1일 로그인','AP 5,000 사용','학원교류회\n10회 클리어',
+  '누적 2일 로그인','누적 7일 로그인','누적 5일 로그인',
+  '미션 30개 이상 달성','학생 장비\n레벨업 15회','학원교류회\n3회 클리어',
+  '현상수배\n10회 클리어','학생에게 선물 10회','스케올 1회',
+  '현상수배 1회 클리어','누적 11일 로그인'
+];
+const MISSION_REWARD = [96,63,74,99,84,81,99,71,70,58,80,72,61,103];
+
+function dateRange(start, end) {
+  const dates = []; let cur = new Date(start);
+  const last = new Date(end);
+  while (cur <= last) { dates.push(cur.toISOString().slice(0,10)); cur.setDate(cur.getDate()+1); }
+  return dates;
+}
+const ALL_DATES = dateRange(EVENT_START, EVENT_END);
+
+function seedVal(date, offset, max) {
+  let h = 0;
+  for(let i=0;i<date.length;i++) h = (h*31 + date.charCodeAt(i) + offset) & 0xffff;
+  return Math.floor(h % (max+1));
+}
+const INFLOW_DATA = {};
+ALL_DATES.forEach(d => {
+  const uv = seedVal(d,1,2), pv = seedVal(d,2,3), dt = seedVal(d,3,3);
+  INFLOW_DATA[d] = { uv, pv, dt, avg: uv ? (pv/uv).toFixed(1) : '0' };
+});
+
+let currentMode = '7d';
+let customStart = '2026-06-13', customEnd = '2026-06-19';
+
+function getFilterDates() {
+  const today = new Date('2026-06-22');
+  if (currentMode === '7d') {
+    const s = new Date(today); s.setDate(s.getDate()-6);
+    return dateRange(s.toISOString().slice(0,10), today.toISOString().slice(0,10));
+  } else if (currentMode === '30d') {
+    const s = new Date(today); s.setDate(s.getDate()-29);
+    return dateRange(s.toISOString().slice(0,10), today.toISOString().slice(0,10));
+  } else {
+    return dateRange(customStart, customEnd);
+  }
+}
+function getVisibleDates() {
+  const s = new Date(EVENT_START), e = new Date(EVENT_END);
+  return getFilterDates().filter(d => { const dt = new Date(d); return dt >= s && dt <= e; });
+}
+const DATE_OPT_LABELS = { '7d':'7일', '30d':'한달', 'custom':'사용자 지정 기간' };
+
+function toggleDropdown() {
+  document.getElementById('dateDropdown').classList.toggle('open');
+}
+function selectDateOpt(mode) {
+  currentMode = mode;
+  document.getElementById('dateDropdown').classList.remove('open');
+  ['7d','30d','custom'].forEach(k => {
+    document.getElementById('opt-'+k).classList.toggle('active', k===mode);
+  });
+  if (mode === 'custom') {
+    document.getElementById('dateSelectLabel').textContent = '사용자 지정 기간';
+    document.getElementById('dateInputRow').classList.add('open');
+  } else {
+    document.getElementById('dateSelectLabel').textContent = DATE_OPT_LABELS[mode];
+    document.getElementById('dateInputRow').classList.remove('open');
+    renderAll();
+  }
+}
+function applyCustomDate() {
+  customStart = document.getElementById('startDate').value;
+  customEnd   = document.getElementById('endDate').value;
+  const label = customStart.slice(5)+' ~ '+customEnd.slice(5);
+  document.getElementById('dateSelectLabel').textContent = label;
+  renderAll();
+}
+
+function renderChart(dates) {
+  const canvas = document.getElementById('trafficChart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement.clientWidth;
+  const H = canvas.parentElement.clientHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0,0,W,H);
+  const PAD = { top:16, right:20, bottom:30, left:40 };
+  const cW = W - PAD.left - PAD.right;
+  const cH = H - PAD.top - PAD.bottom;
+  const dtVals = dates.map(d => (INFLOW_DATA[d]||{dt:0}).dt);
+  const pvVals = dates.map(d => (INFLOW_DATA[d]||{pv:0}).pv);
+  const uvVals = dates.map(d => (INFLOW_DATA[d]||{uv:0}).uv);
+  const maxV = Math.max(...dtVals, ...pvVals, ...uvVals, 4);
+  for(let i=0;i<=4;i++) {
+    const y = PAD.top + cH - (i/4)*cH;
+    ctx.beginPath(); ctx.strokeStyle='#ebebea'; ctx.lineWidth=0.5;
+    ctx.moveTo(PAD.left, y); ctx.lineTo(PAD.left+cW, y); ctx.stroke();
+    ctx.fillStyle='#bbb'; ctx.font='10px -apple-system,sans-serif'; ctx.textAlign='right';
+    ctx.fillText(Math.round((i/4)*maxV), PAD.left-6, y+3.5);
+  }
+  const step = Math.max(1, Math.floor(dates.length/7));
+  ctx.fillStyle='#bbb'; ctx.font='10px -apple-system,sans-serif'; ctx.textAlign='center';
+  dates.forEach((d,i) => {
+    if(i%step===0||i===dates.length-1) {
+      const x = PAD.left+(dates.length>1?(i/(dates.length-1))*cW:cW/2);
+      ctx.fillText(d.slice(5), x, PAD.top+cH+18);
+    }
+  });
+  function drawLine(vals, color) {
+    if(!vals.length) return;
+    const pts = vals.map((v,i) => ({
+      x: PAD.left+(vals.length>1?(i/(vals.length-1))*cW:cW/2),
+      y: PAD.top+cH-(v/maxV)*cH
+    }));
+    ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=1.5;
+    pts.forEach((p,i) => i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+    ctx.stroke();
+    pts.forEach(p => {
+      ctx.beginPath(); ctx.arc(p.x,p.y,3.5,0,Math.PI*2);
+      ctx.fillStyle='#fff'; ctx.fill();
+      ctx.strokeStyle=color; ctx.lineWidth=1.5; ctx.stroke();
+    });
+  }
+  drawLine(dtVals,'#9b8fea');
+  drawLine(pvVals,'#5aba8a');
+  drawLine(uvVals,'#5b9cf6');
+}
+
+function renderInflowTable(dates) {
+  let totalUV=0, totalPV=0, totalDT=0;
+  const rows = dates.map(d => {
+    const r = INFLOW_DATA[d]||{uv:0,pv:0,dt:0,avg:'0'};
+    totalUV+=r.uv; totalPV+=r.pv; totalDT+=r.dt;
+    return `<tr><td class="date-cell">${d}</td><td class="num">${r.uv}</td><td class="num">${r.pv}</td><td class="num">${r.dt}</td><td class="num">${r.avg}</td></tr>`;
+  });
+  const avg = totalUV?(totalPV/totalUV).toFixed(1):'0';
+  document.getElementById('tbodyInflow').innerHTML =
+    `<tr class="total-row"><td>전체</td><td class="num">${totalUV}</td><td class="num">${totalPV}</td><td class="num">${totalDT}</td><td class="num">${avg}</td></tr>`
+    +rows.reverse().join('');
+}
+
+function renderMissionTable(dates) {
+  let html = `<tr class="total-row"><td>전체</td><td>-</td><td class="num">0</td><td class="num">0</td><td class="num">42,620</td><td class="num">339,891</td></tr>`;
+  dates.slice().reverse().slice(0,3).forEach(date => {
+    MISSION_TYPES.forEach((type,idx) => {
+      const r = MISSION_REWARD[idx]||0;
+      html += `<tr><td class="date-cell">${date}</td><td><div class="mission-type">${type.replace('\n','<br>')}</div></td><td class="num">0</td><td class="num">0</td><td class="num">${r}</td><td class="num">${r}</td></tr>`;
+    });
+  });
+  document.getElementById('tbodyMission').innerHTML = html;
+}
+
+function renderAll() {
+  const dates = getVisibleDates();
+  renderChart(dates);
+  renderInflowTable(dates);
+  renderMissionTable(dates);
+}
+
+function activateTab(tabKey) {
+  ['tab1','tab2'].forEach(k => {
+    document.getElementById('tab-btn-'+k).classList.toggle('active', k===tabKey);
+    document.getElementById('tab-content-'+k).style.display = k===tabKey?'block':'none';
+  });
+}
+
+document.addEventListener('click', e => {
+  const wrap = document.querySelector('.date-filter-wrap');
+  if (wrap && !wrap.contains(e.target)) document.getElementById('dateDropdown').classList.remove('open');
+});
+window.addEventListener('load', renderAll);
+window.addEventListener('resize', () => {
+  if (document.getElementById('page-report').classList.contains('active')) {
+    renderChart(getVisibleDates());
+  }
+});
+
+// ══════════════════════════════════════════
+// DETAIL: 데이터
+// ══════════════════════════════════════════
+const UG_COLOR = { '00. 전체':'#475569','01. 기존':'#2563EB','02. 복귀':'#FFC03D','03. 신규':'#2DB267' };
+const UG_BAR_COLOR = { '00. 전체':'#CBD5E1','01. 기존':'#93C5FD','02. 복귀':'#FFDF75','03. 신규':'#94D8B2' };
+
+const PART_DATA = [
+  { ug:'00. 전체', lv:'00. 전체',         part:501241, nopart:374407, total:875648, rate:57.2 },
+  { ug:'01. 기존', lv:'00. 전체',         part:477850, nopart:169025, total:646875, rate:73.9 },
+  { ug:'01. 기존', lv:'01. 저레벨(1~40)', part:70151,  nopart:99849,  total:170000, rate:41.3 },
+  { ug:'01. 기존', lv:'02. 중레벨(41~70)',part:118919, nopart:44167,  total:163086, rate:72.9 },
+  { ug:'01. 기존', lv:'03. 고레벨(71~90)',part:340877, nopart:36866,  total:377743, rate:90.2 },
+  { ug:'02. 복귀', lv:'00. 전체',         part:195514, nopart:203070, total:398584, rate:49.1 },
+  { ug:'02. 복귀', lv:'01. 저레벨(1~40)', part:36354,  nopart:111567, total:147921, rate:24.6 },
+  { ug:'02. 복귀', lv:'02. 중레벨(41~70)',part:67363,  nopart:52536,  total:119899, rate:56.2 },
+  { ug:'02. 복귀', lv:'03. 고레벨(71~90)',part:94514,  nopart:39447,  total:133961, rate:70.6 },
+  { ug:'03. 신규', lv:'00. 전체',         part:37322,  nopart:154048, total:191370, rate:19.5 },
+  { ug:'03. 신규', lv:'01. 저레벨(1~40)', part:37253,  nopart:154015, total:191268, rate:19.5 },
+  { ug:'03. 신규', lv:'02. 중레벨(41~70)',part:69,     nopart:33,     total:102,    rate:67.7 },
+  { ug:'03. 신규', lv:'03. 고레벨(71~90)',part:0,      nopart:0,      total:0,      rate:0.0  },
+];
+
+const DAILY_RET_DATA = (function(){
+  const UGS=['01. 기존','02. 복귀','03. 신규'];
+  const LVS=['01. 저레벨(1~40Lv)','02. 중레벨(41~70Lv)','03. 고레벨(71~90Lv)'];
+  const DATES=['2025-12-16(화)','2025-12-17(수)','2025-12-18(목)','2025-12-19(금)','2025-12-20(토)','2025-12-21(일)','2025-12-22(월)'];
+  const BASE_PART={
+    '01. 기존':{'01. 저레벨(1~40Lv)':[100,64.7,60.1,56.2,53.0,50.4,48.0,46.0,43.6,41.8,40.2,38.9,37.8,36.8,36.0],'02. 중레벨(41~70Lv)':[100,72.1,66.8,62.3,59.0,55.8,53.2,50.5,48.1,46.0,44.0,42.4,41.0,39.8,38.6],'03. 고레벨(71~90Lv)':[100,79.5,73.4,68.9,65.3,62.0,59.4,56.9,54.5,52.3,50.4,48.6,47.0,45.5,44.0]},
+    '02. 복귀':{'01. 저레벨(1~40Lv)':[100,55.2,49.8,45.1,41.3,38.2,35.5,33.1,31.0,29.2,27.6,26.2,24.9,23.8,22.8],'02. 중레벨(41~70Lv)':[100,63.4,57.5,52.5,48.5,44.9,41.8,39.1,36.7,34.5,32.6,30.9,29.4,28.0,26.7],'03. 고레벨(71~90Lv)':[100,71.2,65.0,59.5,55.0,51.1,47.6,44.5,41.7,39.2,37.0,35.1,33.3,31.7,30.2]},
+    '03. 신규':{'01. 저레벨(1~40Lv)':[100,48.5,42.0,37.0,33.0,29.8,27.0,24.7,22.7,21.0,19.5,18.2,17.0,16.0,15.1],'02. 중레벨(41~70Lv)':[100,56.0,49.5,44.0,39.7,36.1,33.0,30.3,28.0,25.9,24.1,22.5,21.1,19.8,18.7],'03. 고레벨(71~90Lv)':[100,64.0,57.5,51.8,47.0,43.0,39.5,36.5,33.9,31.5,29.4,27.6,25.9,24.4,23.0]},
+  };
+  const BASE_NONPART={
+    '01. 기존':{'01. 저레벨(1~40Lv)':[100,22.1,14.5,10.5,8.3,7.0,6.1,5.4,4.9,4.4,4.1,3.8,3.5,3.3,3.1],'02. 중레벨(41~70Lv)':[100,25.3,16.8,12.2,9.7,8.2,7.1,6.3,5.7,5.2,4.8,4.4,4.1,3.9,3.6],'03. 고레벨(71~90Lv)':[100,30.1,20.5,15.0,11.9,10.0,8.7,7.8,7.0,6.4,5.9,5.5,5.1,4.8,4.5]},
+    '02. 복귀':{'01. 저레벨(1~40Lv)':[100,18.5,12.0,8.8,7.0,5.9,5.1,4.5,4.1,3.7,3.4,3.2,2.9,2.7,2.6],'02. 중레벨(41~70Lv)':[100,21.2,14.0,10.3,8.2,6.9,6.0,5.3,4.8,4.3,4.0,3.7,3.4,3.2,3.0],'03. 고레벨(71~90Lv)':[100,26.0,17.5,12.9,10.3,8.7,7.5,6.7,6.0,5.5,5.0,4.7,4.3,4.1,3.8]},
+    '03. 신규':{'01. 저레벨(1~40Lv)':[100,15.0,9.5,6.9,5.5,4.7,4.0,3.6,3.2,2.9,2.7,2.5,2.3,2.1,2.0],'02. 중레벨(41~70Lv)':[100,17.5,11.2,8.2,6.5,5.5,4.8,4.2,3.8,3.4,3.2,2.9,2.7,2.5,2.4],'03. 고레벨(71~90Lv)':[100,21.0,13.8,10.2,8.1,6.8,5.9,5.2,4.7,4.3,3.9,3.6,3.4,3.1,2.9]},
+  };
+  const BASE_USERS={'01. 기존':{'01. 저레벨(1~40Lv)':3200,'02. 중레벨(41~70Lv)':8500,'03. 고레벨(71~90Lv)':35000},'02. 복귀':{'01. 저레벨(1~40Lv)':1200,'02. 중레벨(41~70Lv)':2800,'03. 고레벨(71~90Lv)':5500},'03. 신규':{'01. 저레벨(1~40Lv)':900,'02. 중레벨(41~70Lv)':1800,'03. 고레벨(71~90Lv)':2200}};
+  const rnd=(v,d=2)=>parseFloat((v+(Math.random()-0.5)*d).toFixed(1));
+  const rows=[];
+  DATES.forEach(date=>{UGS.forEach(ug=>{LVS.forEach(lv=>{
+    const bp=BASE_PART[ug][lv],bn=BASE_NONPART[ug][lv];
+    rows.push({date,ug,lv,users:BASE_USERS[ug][lv]+Math.round((Math.random()-0.5)*200),part:bp.map((v,i)=>i===0?100:rnd(v)),nonpart:bn.map((v,i)=>i===0?100:rnd(v))});
+  });});});
+  return rows;
+})();
+
+const RAW_DATA=[
+  {date:'2025-12-16(화)',ug:'01. 기존',lv:'저레벨',part:6707,nopart:3098,total:9805},
+  {date:'2025-12-16(화)',ug:'01. 기존',lv:'중레벨',part:29795,nopart:3809,total:33604},
+  {date:'2025-12-16(화)',ug:'01. 기존',lv:'고레벨',part:226584,nopart:10276,total:236860},
+  {date:'2025-12-16(화)',ug:'02. 복귀',lv:'저레벨',part:1333,nopart:2118,total:3451},
+  {date:'2025-12-16(화)',ug:'02. 복귀',lv:'중레벨',part:3395,nopart:1257,total:4652},
+  {date:'2025-12-16(화)',ug:'02. 복귀',lv:'고레벨',part:6760,nopart:1433,total:8193},
+  {date:'2025-12-16(화)',ug:'03. 신규',lv:'저레벨',part:986,nopart:2739,total:3725},
+  {date:'2025-12-17(수)',ug:'01. 기존',lv:'저레벨',part:8887,nopart:3872,total:12759},
+  {date:'2025-12-17(수)',ug:'01. 기존',lv:'중레벨',part:35951,nopart:4799,total:40750},
+  {date:'2025-12-17(수)',ug:'01. 기존',lv:'고레벨',part:240874,nopart:11510,total:252384},
+  {date:'2025-12-17(수)',ug:'02. 복귀',lv:'저레벨',part:1850,nopart:3021,total:4871},
+  {date:'2025-12-17(수)',ug:'02. 복귀',lv:'중레벨',part:4200,nopart:1715,total:5915},
+  {date:'2025-12-17(수)',ug:'03. 신규',lv:'저레벨',part:1102,nopart:3054,total:4156},
+  {date:'2025-12-18(목)',ug:'01. 기존',lv:'저레벨',part:7543,nopart:3214,total:10757},
+  {date:'2025-12-18(목)',ug:'01. 기존',lv:'중레벨',part:31204,nopart:4102,total:35306},
+  {date:'2025-12-18(목)',ug:'01. 기존',lv:'고레벨',part:233901,nopart:10843,total:244744},
+  {date:'2025-12-18(목)',ug:'02. 복귀',lv:'저레벨',part:1568,nopart:2641,total:4209},
+  {date:'2025-12-18(목)',ug:'02. 복귀',lv:'중레벨',part:3801,nopart:1489,total:5290},
+  {date:'2025-12-18(목)',ug:'02. 복귀',lv:'고레벨',part:7203,nopart:1582,total:8785},
+  {date:'2025-12-18(목)',ug:'03. 신규',lv:'저레벨',part:1045,nopart:2901,total:3946},
+  {date:'2025-12-19(금)',ug:'01. 기존',lv:'저레벨',part:9124,nopart:3541,total:12665},
+  {date:'2025-12-19(금)',ug:'01. 기존',lv:'중레벨',part:37280,nopart:4632,total:41912},
+  {date:'2025-12-19(금)',ug:'01. 기존',lv:'고레벨',part:248103,nopart:11204,total:259307},
+  {date:'2025-12-19(금)',ug:'02. 복귀',lv:'저레벨',part:1921,nopart:2854,total:4775},
+  {date:'2025-12-19(금)',ug:'02. 복귀',lv:'중레벨',part:4387,nopart:1623,total:6010},
+  {date:'2025-12-19(금)',ug:'02. 복귀',lv:'고레벨',part:7512,nopart:1498,total:9010},
+  {date:'2025-12-19(금)',ug:'03. 신규',lv:'저레벨',part:1188,nopart:2773,total:3961},
+  {date:'2025-12-20(토)',ug:'01. 기존',lv:'저레벨',part:11053,nopart:3870,total:14923},
+  {date:'2025-12-20(토)',ug:'01. 기존',lv:'중레벨',part:42610,nopart:4901,total:47511},
+  {date:'2025-12-20(토)',ug:'01. 기존',lv:'고레벨',part:261447,nopart:11893,total:273340},
+  {date:'2025-12-20(토)',ug:'02. 복귀',lv:'저레벨',part:2304,nopart:2991,total:5295},
+  {date:'2025-12-20(토)',ug:'02. 복귀',lv:'중레벨',part:5021,nopart:1748,total:6769},
+  {date:'2025-12-20(토)',ug:'02. 복귀',lv:'고레벨',part:8234,nopart:1612,total:9846},
+  {date:'2025-12-20(토)',ug:'03. 신규',lv:'저레벨',part:1342,nopart:2890,total:4232},
+  {date:'2025-12-21(일)',ug:'01. 기존',lv:'저레벨',part:10287,nopart:3712,total:13999},
+  {date:'2025-12-21(일)',ug:'01. 기존',lv:'중레벨',part:39854,nopart:4755,total:44609},
+  {date:'2025-12-21(일)',ug:'01. 기존',lv:'고레벨',part:254982,nopart:11541,total:266523},
+  {date:'2025-12-21(일)',ug:'02. 복귀',lv:'저레벨',part:2087,nopart:2803,total:4890},
+  {date:'2025-12-21(일)',ug:'02. 복귀',lv:'중레벨',part:4698,nopart:1591,total:6289},
+  {date:'2025-12-21(일)',ug:'02. 복귀',lv:'고레벨',part:7891,nopart:1543,total:9434},
+  {date:'2025-12-21(일)',ug:'03. 신규',lv:'저레벨',part:1203,nopart:2712,total:3915},
+  {date:'2025-12-22(월)',ug:'01. 기존',lv:'저레벨',part:8932,nopart:3498,total:12430},
+  {date:'2025-12-22(월)',ug:'01. 기존',lv:'중레벨',part:34712,nopart:4523,total:39235},
+  {date:'2025-12-22(월)',ug:'01. 기존',lv:'고레벨',part:238541,nopart:11087,total:249628},
+  {date:'2025-12-22(월)',ug:'02. 복귀',lv:'저레벨',part:1734,nopart:2637,total:4371},
+  {date:'2025-12-22(월)',ug:'02. 복귀',lv:'중레벨',part:4012,nopart:1502,total:5514},
+  {date:'2025-12-22(월)',ug:'02. 복귀',lv:'고레벨',part:7124,nopart:1489,total:8613},
+  {date:'2025-12-22(월)',ug:'03. 신규',lv:'저레벨',part:1098,nopart:2654,total:3752},
+];
+
+// ══════════════════════════════════════════
+// DETAIL: HELPERS
+// ══════════════════════════════════════════
+const fmt = n => n==null?'—':n.toLocaleString('ko-KR');
+const fmtp = v => v==null?'—':v.toFixed(1)+'%';
+
+function buildPartTable() {
+  const tbody = document.getElementById('t-part-body');
+  const groups=['00. 전체','01. 기존','02. 복귀','03. 신규'];
+  let html='';
+  groups.forEach(ug=>{
+    const rows=PART_DATA.filter(r=>r.ug===ug);
+    rows.forEach((r,i)=>{
+      const isTotal=r.lv.startsWith('00.');
+      const color=UG_COLOR[ug]||'#475569';
+      const barPct=r.rate||0;
+      html+=`<tr${isTotal?' class="group-header"':''}>
+        <td style="font-weight:${isTotal?'700':'400'}">${isTotal?ug:''}</td>
+        <td>${r.lv}</td>
+        <td style="text-align:right">${fmt(r.part)}</td>
+        <td style="text-align:right">${fmt(r.nopart)}</td>
+        <td style="text-align:right">${fmt(r.total)}</td>
+        <td style="text-align:right;font-weight:600">${fmtp(r.rate)}</td>
+        <td style="min-width:120px"><div class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:${barPct}%;background:${UG_BAR_COLOR[ug]||'#CBD5E1'}"></div></div></div></td>
+      </tr>`;
+    });
+  });
+  tbody.innerHTML=html;
+}
+
+function buildRetGrid(day) {
+  const ugs=['01. 기존','02. 복귀','03. 신규'];
+  const lvs=['저레벨','중레벨','고레벨'];
+  const LV_FULL={'저레벨':'01. 저레벨(1~40Lv)','중레벨':'02. 중레벨(41~70Lv)','고레벨':'03. 고레벨(71~90Lv)'};
+  const DAY_IDX={d1:1,d7:7,d14:14};
+  const ugColors={'01. 기존':'#93C5FD','02. 복귀':'#FFDF75','03. 신규':'#94D8B2'};
+  const ugTextColors={'01. 기존':'#2563EB','02. 복귀':'#FFC03D','03. 신규':'#2DB267'};
+  const idx=DAY_IDX[day];
+  let html='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start">';
+  ugs.forEach(ug=>{
+    html+=`<div><div class="ug-header">${ug}</div><div class="ret-grid">`;
+    lvs.forEach(lv=>{
+      const subset=DAILY_RET_DATA.filter(r=>r.ug===ug&&r.lv===LV_FULL[lv]);
+      if(!subset.length){html+=`<div class="ret-cell na-cell-block">0</div>`;return;}
+      const p=subset.reduce((s,r)=>s+r.part[idx],0)/subset.length;
+      const np=subset.reduce((s,r)=>s+r.nonpart[idx],0)/subset.length;
+      const isNeg=p<np;
+      const diffAbs=Math.abs(p-np).toFixed(1);
+      const cellBg=isNeg?'background:#FEF2F2;border-color:#FECACA':'';
+      html+=`<div class="ret-cell" style="${cellBg}">
+        <div class="ret-cell-head">${lv}</div>
+        <div class="ret-bar-row">
+          <div class="ret-bar-label" style="color:${ugTextColors[ug]}">참여</div>
+          <div class="ret-bar-outer"><div class="ret-bar-inner" style="width:${p}%;background:${ugColors[ug]}"></div></div>
+          <div class="ret-bar-pct" style="color:${ugTextColors[ug]}">${fmtp(p)}</div>
+        </div>
+        <div class="ret-bar-row">
+          <div class="ret-bar-label" style="color:#94A3B8">미참여</div>
+          <div class="ret-bar-outer"><div class="ret-bar-inner" style="width:${np}%;background:#CBD5E1"></div></div>
+          <div class="ret-bar-pct" style="color:#94A3B8">${fmtp(np)}</div>
+        </div>
+        <div class="ret-diff ${isNeg?'neg':''}">${isNeg?'-':'+'}{${diffAbs}}%p</div>
+      </div>`;
+    });
+    html+='</div></div>';
+  });
+  html+='</div>';
+  document.getElementById('ret-grid-container').innerHTML=html;
+}
+
+let curveChart=null;
+let showPart=true, showNonpart=true;
+
+function buildCurve() {
+  const key=document.getElementById('curve-ug').value;
+  const labels=Array.from({length:15},(_,i)=>`D+${String(i).padStart(2,'0')}`);
+  const UG_MAP={exist:'01. 기존',ret:'02. 복귀','new':'03. 신규'};
+  const LV_MAP={low:'01. 저레벨(1~40Lv)',mid:'02. 중레벨(41~70Lv)',high:'03. 고레벨(71~90Lv)'};
+  const [ugKey,lvKey]=key.split('-');
+  const ugFilter=UG_MAP[ugKey];
+  const lvFilter=lvKey==='all'?null:LV_MAP[lvKey];
+  const subset=DAILY_RET_DATA.filter(r=>r.ug===ugFilter&&(lvFilter===null||r.lv===lvFilter));
+  const avgArr=field=>Array.from({length:15},(_,i)=>subset.length?subset.reduce((s,r)=>s+r[field][i],0)/subset.length:0);
+  const d={part:avgArr('part'),nonpart:avgArr('nonpart')};
+  const partColor=key.startsWith('ret')?'#FFDF75':key.startsWith('new')?'#94D8B2':'#93C5FD';
+  const partTextColor=key.startsWith('ret')?'#FFC03D':key.startsWith('new')?'#2DB267':'#2563EB';
+  const datasets=[];
+  if(showPart) datasets.push({label:'참여',data:d.part,borderColor:partColor,backgroundColor:partColor+'30',pointRadius:3,tension:0.3,fill:true});
+  if(showNonpart) datasets.push({label:'미참여',data:d.nonpart,borderColor:'#94A3B8',backgroundColor:'#94A3B820',borderDash:[4,3],pointRadius:3,tension:0.3,fill:true});
+  const days=Array.from({length:15},(_,i)=>`D+${String(i).padStart(2,'0')}`);
+  document.getElementById('t-cohort-head').innerHTML=`<tr><th>구분</th>${days.map(d=>`<th style="text-align:right">${d}</th>`).join('')}</tr>`;
+  const partRow=d.part.map(v=>`<td style="text-align:right">${v.toFixed(1)}%</td>`).join('');
+  const nonpartRow=d.nonpart.map(v=>`<td style="text-align:right;color:#94A3B8">${v.toFixed(1)}%</td>`).join('');
+  document.getElementById('t-cohort-body').innerHTML=`<tr><td style="font-weight:700;color:${partTextColor}">참여</td>${partRow}</tr><tr><td style="font-weight:700;color:#94A3B8">미참여</td>${nonpartRow}</tr>`;
+  if(curveChart) curveChart.destroy();
+  curveChart=new Chart(document.getElementById('curve-chart'),{
+    type:'line',data:{labels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%`}}},
+      scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%',font:{size:11}},grid:{color:'#F1F5F9'}},x:{ticks:{font:{size:11}},grid:{display:false}}}
+    }
+  });
+}
+
+function buildRaw() {
+  const tbody=document.getElementById('t-raw-body');
+  const rows=[];
+  const dateSpans={},ugSpans={};
+  RAW_DATA.forEach(r=>{
+    dateSpans[r.date]=(dateSpans[r.date]||0)+1;
+    const uk=r.date+'|'+r.ug;
+    ugSpans[uk]=(ugSpans[uk]||0)+1;
+  });
+  const dateSeen=new Set(),ugSeen=new Set();
+  RAW_DATA.forEach(r=>{
+    const dk=r.date,uk=r.date+'|'+r.ug;
+    const isFD=!dateSeen.has(dk),isFU=!ugSeen.has(uk);
+    if(isFD) dateSeen.add(dk);
+    if(isFU) ugSeen.add(uk);
+    const dateTd=isFD?`<td rowspan="${dateSpans[dk]}" style="vertical-align:top;font-weight:600;white-space:nowrap;border-right:1px solid #E2E8F0">${r.date}</td>`:'';
+    const ugTd=isFU?`<td rowspan="${ugSpans[uk]}" style="vertical-align:top;font-weight:600;border-right:1px solid #E2E8F0">${r.ug}</td>`:'';
+    rows.push(`<tr>${dateTd}${ugTd}<td>${r.lv}</td><td style="text-align:right">${fmt(r.part)}</td><td style="text-align:right">${fmt(r.nopart)}</td><td style="text-align:right;font-weight:600">${fmt(r.total)}</td></tr>`);
+  });
+  tbody.innerHTML=rows.join('');
+}
+
+let dailyRetSortAsc=false;
+function buildDailyRet() {
+  const partKey=document.getElementById('daily-ret-part-sel').value;
+  const days=Array.from({length:15},(_,i)=>`D+${String(i).padStart(2,'0')}`);
+  document.getElementById('t-daily-ret-head').innerHTML=`<tr><th style="width:76px">유저군</th><th style="width:110px">레벨군</th><th style="width:88px;cursor:pointer;white-space:nowrap" id="th-daily-date">일자 <span id="sort-arrow">${dailyRetSortAsc?'▲':'▼'}</span></th><th style="width:68px;text-align:right;white-space:nowrap">접속유저수</th>${days.map(d=>`<th style="text-align:right">${d}</th>`).join('')}</tr>`;
+  document.getElementById('th-daily-date').addEventListener('click',()=>{dailyRetSortAsc=!dailyRetSortAsc;buildDailyRet();});
+  const data=[...DAILY_RET_DATA].sort((a,b)=>{const cmp=a.date<b.date?-1:a.date>b.date?1:0;return dailyRetSortAsc?cmp:-cmp;});
+  const avgMap={};
+  const UGS=['01. 기존','02. 복귀','03. 신규'];
+  const LVS=['01. 저레벨(1~40Lv)','02. 중레벨(41~70Lv)','03. 고레벨(71~90Lv)'];
+  UGS.forEach(ug=>{
+    LVS.forEach(lv=>{
+      const subset=data.filter(r=>r.ug===ug&&r.lv===lv);
+      if(!subset.length) return;
+      avgMap[ug+'|'+lv]=Array.from({length:15},(_,i)=>subset.reduce((s,r)=>s+r[partKey][i],0)/subset.length);
+    });
+    const ugSubset=data.filter(r=>r.ug===ug);
+    if(ugSubset.length) avgMap[ug+'|ALL']=Array.from({length:15},(_,i)=>ugSubset.reduce((s,r)=>s+r[partKey][i],0)/ugSubset.length);
+  });
+  const dateCount=[...new Set(data.map(r=>r.date))].length;
+  const ugRowCount={},lvRowCount={};
+  UGS.forEach(ug=>{
+    let total=1;
+    LVS.forEach(lv=>{const cnt=data.filter(r=>r.ug===ug&&r.lv===lv).length;if(cnt){lvRowCount[ug+'|'+lv]=1+cnt;total+=1+cnt;}});
+    ugRowCount[ug]=total;
+  });
+  const fmtAvg=v=>v==null?'—':v.toFixed(1)+'%';
+  const rows=[];
+  UGS.forEach(ug=>{
+    const ugAvg=avgMap[ug+'|ALL'];
+    rows.push(`<tr><td rowspan="${ugRowCount[ug]}" style="vertical-align:top;font-weight:600;border-right:1px solid #E2E8F0;white-space:nowrap">${ug}</td><td colspan="2" style="font-weight:700;background:#F8FAFC;color:#475569">평균</td><td style="text-align:right;font-weight:600;background:#F8FAFC">—</td>${ugAvg?ugAvg.map(v=>`<td style="text-align:right;font-weight:600;background:#F8FAFC">${fmtAvg(v)}</td>`).join(''):''}</tr>`);
+    LVS.forEach(lv=>{
+      const subset=data.filter(r=>r.ug===ug&&r.lv===lv);
+      if(!subset.length) return;
+      const lvAvg=avgMap[ug+'|'+lv];
+      const lk=ug+'|'+lv;
+      const lvLabel=lv.replace('(','<br>(');
+      rows.push(`<tr><td rowspan="${lvRowCount[lk]}" style="vertical-align:top;border-right:1px solid #E2E8F0">${lvLabel}</td><td style="font-weight:700;background:#F8FAFC;color:#475569">평균</td><td style="text-align:right;font-weight:600;background:#F8FAFC">—</td>${lvAvg?lvAvg.map(v=>`<td style="text-align:right;background:#F8FAFC">${fmtAvg(v)}</td>`).join(''):''}</tr>`);
+      subset.forEach(r=>{rows.push(`<tr><td style="white-space:nowrap">${r.date}</td><td style="text-align:right">${fmt(r.users)}</td>${r[partKey].map(v=>`<td style="text-align:right">${fmtAvg(v)}</td>`).join('')}</tr>`);});
+    });
+  });
+  document.getElementById('t-daily-ret-body').innerHTML=rows.join('');
+}
+
+// ── Detail event listeners ──
+document.querySelectorAll('.day-tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.day-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    buildRetGrid(tab.dataset.d);
+  });
+});
+document.getElementById('curve-ug').addEventListener('change',buildCurve);
+document.querySelectorAll('.toggle-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    btn.classList.toggle('active');
+    if(btn.dataset.t==='part') showPart=btn.classList.contains('active');
+    else showNonpart=btn.classList.contains('active');
+    buildCurve();
+  });
+});
+document.getElementById('raw-header').addEventListener('click',()=>{
+  const h=document.getElementById('raw-header'),b=document.getElementById('raw-body');
+  h.classList.toggle('open');
+  b.style.display=h.classList.contains('open')?'flex':'none';
+});
+document.getElementById('daily-ret-header').addEventListener('click',()=>{
+  const h=document.getElementById('daily-ret-header'),b=document.getElementById('daily-ret-body');
+  h.classList.toggle('open');
+  b.style.display=h.classList.contains('open')?'flex':'none';
+});
+document.getElementById('daily-ret-part-sel').addEventListener('change',buildDailyRet);
+
+document.getElementById('csv-btn').addEventListener('click',()=>{
+  const header=['날짜','유저군','레벨군','참여','미참여','총합계'];
+  const rows=RAW_DATA.map(r=>[r.date,r.ug,r.lv,r.part,r.nopart,r.total]);
+  const csv=[header,...rows].map(r=>r.join(',')).join('\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='event-raw-data.csv';a.click();
+});
+document.getElementById('daily-ret-csv-btn').addEventListener('click',()=>{
+  const partKey=document.getElementById('daily-ret-part-sel').value;
+  const partLabel=partKey==='part'?'참여':'미참여';
+  const days=Array.from({length:15},(_,i)=>`D+${String(i).padStart(2,'0')}`);
+  const header=['유저군','레벨군','일자','접속유저수',...days];
+  const rows=DAILY_RET_DATA.map(r=>[r.ug,r.lv,r.date,r.users,...r[partKey].map(v=>v.toFixed(1)+'%')]);
+  const csv=[header,...rows].map(r=>r.join(',')).join('\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`event-daily-ret-${partLabel}.csv`;a.click();
+});
+
+// ══════════════════════════════════════════
+// spec-sb 연동: postMessage 수신
+// ══════════════════════════════════════════
+window.addEventListener('message', function(e) {
+  var d = e.data || {};
+
+  if (d.type === 'spec-show-page' && d.page) {
+    showPage(d.page);
+  }
+
+  if (d.type === 'spec-highlight' && d.sel) {
+    document.querySelectorAll('.__sb_hl').forEach(function(el) {
+      el.classList.remove('__sb_hl');
+      el.style.removeProperty('outline');
+      el.style.removeProperty('outline-offset');
+      el.style.removeProperty('transition');
+    });
+    var el = document.querySelector(d.sel);
+    if (el) {
+      el.classList.add('__sb_hl');
+      el.style.outline = '2.5px solid #4b5cf0';
+      el.style.outlineOffset = '3px';
+      el.style.transition = 'outline 0.15s';
+      if (d.scroll) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  if (d.type === 'spec-unhighlight') {
+    document.querySelectorAll('.__sb_hl').forEach(function(el) {
+      el.classList.remove('__sb_hl');
+      el.style.removeProperty('outline');
+      el.style.removeProperty('outline-offset');
+      el.style.removeProperty('transition');
+    });
+  }
+});
+</script>
+</body>
+</html>
