@@ -318,22 +318,23 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
       <span class="section-title">트래픽 개요</span>
       <div class="date-filter-wrap">
         <button class="date-select-btn" id="dateSelectBtn" onclick="toggleDropdown()">
-          <span id="dateSelectLabel">7일</span>
+          <span id="dateSelectLabel">전체</span>
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#888" stroke-width="1.5">
             <path d="M2 3.5l3 3 3-3"/>
           </svg>
         </button>
         <div class="date-dropdown" id="dateDropdown">
-          <div class="dropdown-item active" id="opt-7d"     onclick="selectDateOpt('7d')">7일</div>
+          <div class="dropdown-item active"  id="opt-all"    onclick="selectDateOpt('all')">전체</div>
+          <div class="dropdown-item"        id="opt-7d"     onclick="selectDateOpt('7d')">7일</div>
           <div class="dropdown-item"        id="opt-30d"    onclick="selectDateOpt('30d')">한달</div>
           <div class="dropdown-item"        id="opt-custom" onclick="selectDateOpt('custom')">사용자 지정 기간</div>
         </div>
       </div>
     </div>
     <div class="date-input-row" id="dateInputRow">
-      <input type="date" id="startDate" value="2026-06-13">
+      <input type="date" id="startDate" value="2026-06-13" min="2026-06-11" max="2026-07-10">
       <span>~</span>
-      <input type="date" id="endDate" value="2026-06-19">
+      <input type="date" id="endDate" value="2026-06-19" min="2026-06-11" max="2026-07-10">
       <button class="btn-apply" onclick="applyCustomDate()">적용</button>
     </div>
     <div class="chart-wrap">
@@ -707,12 +708,14 @@ ALL_DATES.forEach(d => {
   INFLOW_DATA[d] = { uv, pv, dt, avg: uv ? (pv/uv).toFixed(1) : '0' };
 });
 
-let currentMode = '7d';
+let currentMode = 'all';
 let customStart = '2026-06-13', customEnd = '2026-06-19';
 
 function getFilterDates() {
   const today = new Date('2026-06-22');
-  if (currentMode === '7d') {
+  if (currentMode === 'all') {
+    return ALL_DATES;
+  } else if (currentMode === '7d') {
     const s = new Date(today); s.setDate(s.getDate()-6);
     return dateRange(s.toISOString().slice(0,10), today.toISOString().slice(0,10));
   } else if (currentMode === '30d') {
@@ -726,7 +729,7 @@ function getVisibleDates() {
   const s = new Date(EVENT_START), e = new Date(EVENT_END);
   return getFilterDates().filter(d => { const dt = new Date(d); return dt >= s && dt <= e; });
 }
-const DATE_OPT_LABELS = { '7d':'7일', '30d':'한달', 'custom':'사용자 지정 기간' };
+const DATE_OPT_LABELS = { 'all':'전체', '7d':'7일', '30d':'한달', 'custom':'사용자 지정 기간' };
 
 function toggleDropdown() {
   document.getElementById('dateDropdown').classList.toggle('open');
@@ -734,7 +737,7 @@ function toggleDropdown() {
 function selectDateOpt(mode) {
   currentMode = mode;
   document.getElementById('dateDropdown').classList.remove('open');
-  ['7d','30d','custom'].forEach(k => {
+  ['all','7d','30d','custom'].forEach(k => {
     document.getElementById('opt-'+k).classList.toggle('active', k===mode);
   });
   if (mode === 'custom') {
@@ -747,10 +750,15 @@ function selectDateOpt(mode) {
   }
 }
 function applyCustomDate() {
-  customStart = document.getElementById('startDate').value;
-  customEnd   = document.getElementById('endDate').value;
-  const label = customStart.slice(5)+' ~ '+customEnd.slice(5);
-  document.getElementById('dateSelectLabel').textContent = label;
+  let s = document.getElementById('startDate').value;
+  let e = document.getElementById('endDate').value;
+  if (!s || !e) return;
+  if (s < EVENT_START) s = EVENT_START;
+  if (e > EVENT_END)   e = EVENT_END;
+  if (s > e) return;
+  customStart = s;
+  customEnd   = e;
+  document.getElementById('dateSelectLabel').textContent = '사용자 지정';
   renderAll();
 }
 
