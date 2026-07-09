@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMAGE_MAP_EDITOR - 이미지 맵 에디터 화면설계서</title>
+<style>
+  :root {
+    --bg:#ffffff;--bg2:#f5f5f3;--bg3:#eeece8;
+    --text:#1a1a18;--text2:#6b6a65;--text3:#9c9a92;
+    --border:rgba(0,0,0,0.12);--border2:rgba(0,0,0,0.2);
+    --info-bg:#e6f1fb;--info-text:#0c447c;--info-border:rgba(24,95,165,0.3);
+    --warn-bg:#faeeda;--warn-text:#633806;--warn-border:rgba(186,117,23,0.3);
+    --danger-bg:#fde8e8;--danger-text:#7c1818;--danger-border:rgba(226,75,74,0.3);
+    --radius:8px;--radius-lg:12px;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{
+      --bg:#1e1e1c;--bg2:#2a2a27;--bg3:#333330;
+      --text:#e8e6de;--text2:#9c9a92;--text3:#6b6a65;
+      --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.2);
+      --info-bg:#0c2d4a;--info-text:#85b7eb;--info-border:rgba(55,138,221,0.3);
+      --warn-bg:#2d1f00;--warn-text:#fac775;--warn-border:rgba(186,117,23,0.3);
+      --danger-bg:#2d0c0c;--danger-text:#f28b82;--danger-border:rgba(226,75,74,0.3);
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,'Noto Sans KR',sans-serif;font-size:13px;color:var(--text);background:var(--bg);max-width:2000px;margin:0 auto;}
+  .breadcrumb{padding:12px 16px;font-size:11px;color:var(--text2);border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:4px;}
+  .breadcrumb a{color:var(--info-text);text-decoration:none;}
+  .layout{display:grid;grid-template-columns:1fr 320px;gap:16px;padding:16px;}
+  .screen-panel{background:var(--bg2);border-radius:var(--radius-lg);padding:12px;border:0.5px solid var(--border);}
+  .screen-panel-title{font-size:11px;color:var(--text2);margin-bottom:10px;font-weight:600;display:flex;align-items:center;gap:6px;}
+  .screen-panel-id{font-family:monospace;color:var(--info-text);font-size:10px;background:var(--info-bg);padding:2px 6px;border-radius:4px;}
+  .section{background:var(--bg);border-radius:var(--radius);border:1.5px solid var(--border);padding:10px 12px;margin-bottom:6px;cursor:pointer;transition:border-color 0.15s,background 0.15s;}
+  .section:hover{border-color:rgba(24,95,165,0.35);}
+  .section.active{border-color:var(--info-border);background:var(--info-bg);}
+  .section.highlight{outline:2px solid rgba(24,95,165,0.4);outline-offset:1px;}
+  .section-label{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;font-family:monospace;}
+  .editor-frame{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--bg3);margin-bottom:6px;}
+  .editor-main{display:grid;grid-template-columns:1fr 220px;}
+  .device-bar{display:flex;align-items:center;gap:5px;padding:6px 10px;background:var(--bg);border-bottom:1px solid var(--border);flex-wrap:wrap;}
+  .device-btn{font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);cursor:pointer;transition:all 0.12s;font-weight:500;}
+  .device-btn.active{background:var(--info-bg);color:var(--info-text);border-color:var(--info-border);}
+  .safe-toggle{font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--warn-border);background:var(--warn-bg);color:var(--warn-text);cursor:pointer;margin-left:4px;font-weight:500;}
+  .safe-toggle.off{opacity:0.45;}
+  .zoom-row{margin-left:auto;display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);}
+
+  /* 캔버스 */
+  .canvas-area{background:#e0ddd6;min-height:1000px;padding:20px;display:flex;align-items:flex-start;justify-content:center;overflow:hidden;position:relative;user-select:none;}
+  #canvas-zoom-wrap{transform-origin:top center;transition:transform 0.15s;}
+
+  /* 폰 목업 */
+  .phone{background:#18181a;border-radius:24px;padding:12px 8px 10px;box-shadow:0 6px 24px rgba(0,0,0,0.35);position:relative;transition:width 0.2s,height 0.2s;}
+  .phone-notch{width:52px;height:11px;background:#18181a;border-radius:0 0 9px 9px;margin:0 auto 5px;}
+  .phone-screen{background:#2a2828;border-radius:10px;overflow:hidden;position:relative;}
+  #phone-img{position:relative;background:repeating-linear-gradient(45deg,#3a3838,#3a3838 6px,#2a2828 6px,#2a2828 12px);cursor:crosshair;}
+  #phone-img.has-image{background-size:cover;background-position:center;cursor:crosshair;}
+  #phone-img.drawing-mode{cursor:crosshair;}
+  /* 핫스팟 엘리먼트 */
+  .hs-el{position:absolute;border:2px solid;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;cursor:move;letter-spacing:0.2px;box-sizing:border-box;}
+  .hs-el.selected{outline:2px solid #fff;outline-offset:1px;z-index:100!important;}
+  /* 리사이즈 핸들 */
+  .rh{position:absolute;width:8px;height:8px;background:#fff;border:1.5px solid #0c447c;border-radius:2px;z-index:101;}
+  .rh-nw{top:-5px;left:-5px;cursor:nw-resize;}
+  .rh-n{top:-5px;left:50%;transform:translateX(-50%);cursor:n-resize;}
+  .rh-ne{top:-5px;right:-5px;cursor:ne-resize;}
+  .rh-e{top:50%;right:-5px;transform:translateY(-50%);cursor:e-resize;}
+  .rh-se{bottom:-5px;right:-5px;cursor:se-resize;}
+  .rh-s{bottom:-5px;left:50%;transform:translateX(-50%);cursor:s-resize;}
+  .rh-sw{bottom:-5px;left:-5px;cursor:sw-resize;}
+  .rh-w{top:50%;left:-5px;transform:translateY(-50%);cursor:w-resize;}
+  /* 드래그 프리뷰 */
+  #drag-preview{position:absolute;border:2px dashed #378ADD;background:rgba(55,138,221,0.15);pointer-events:none;display:none;box-sizing:border-box;}
+  /* 세이프에리어 */
+  .safe-overlay{position:absolute;inset:0;pointer-events:none;}
+  .safe-top{position:absolute;top:0;left:0;right:0;height:8%;background:rgba(250,238,90,0.18);border-bottom:1px dashed rgba(186,117,23,0.5);}
+  .safe-bottom{position:absolute;bottom:0;left:0;right:0;height:6%;background:rgba(250,238,90,0.18);border-top:1px dashed rgba(186,117,23,0.5);}
+  .safe-left{position:absolute;top:0;bottom:0;left:0;width:2%;background:rgba(250,238,90,0.1);}
+  .safe-right{position:absolute;top:0;bottom:0;right:0;width:2%;background:rgba(250,238,90,0.1);}
+
+  /* 속성 패널 */
+  .props-panel{background:var(--bg);border-left:1px solid var(--border);overflow-y:auto;max-height:1000px;}
+  .props-section{padding:9px 11px;border-bottom:0.5px solid var(--border);cursor:pointer;transition:background 0.1s;}
+  .props-section:hover{background:var(--bg2);}
+  .props-section:last-child{border-bottom:none;}
+  .props-header{font-size:10px;font-weight:700;color:var(--text2);margin-bottom:7px;display:flex;justify-content:space-between;align-items:center;}
+  .props-count{font-weight:400;color:var(--text3);}
+  .upload-slot{border:1.5px dashed var(--border2);border-radius:var(--radius);padding:7px;text-align:center;margin-bottom:5px;cursor:pointer;position:relative;overflow:hidden;}
+  .upload-slot:hover{border-color:var(--info-border);background:var(--info-bg);}
+  .upload-slot.has-img{border-style:solid;border-color:rgba(29,158,117,0.5);background:rgba(29,158,117,0.05);}
+  .upload-slot img{max-width:100%;max-height:50px;border-radius:4px;margin-bottom:2px;display:block;margin:0 auto 3px;}
+  .slot-name{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:2px;}
+  .slot-spec{font-size:9px;color:var(--text3);}
+  .slot-req{color:#E24B4A;font-size:9px;font-weight:700;}
+  .dir-chips{display:flex;gap:4px;margin-bottom:7px;}
+  .hs-item{display:flex;align-items:center;gap:6px;padding:4px 5px;cursor:pointer;border-radius:5px;transition:background 0.1s;}
+  .hs-item:hover{background:var(--bg2);}
+  .hs-item.selected{background:var(--info-bg);}
+  .hs-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+  .hs-name{font-size:11px;flex:1;}
+  .hs-type{font-size:9px;padding:1px 6px;border-radius:100px;white-space:nowrap;}
+  .hs-type-deep{background:var(--info-bg);color:var(--info-text);}
+  .hs-type-web{background:var(--warn-bg);color:var(--warn-text);}
+  .hs-type-none{background:var(--bg3);color:var(--text3);}
+  .hs-warn{font-size:9px;color:#E24B4A;}
+  .field-label{font-size:9px;color:var(--text3);margin-bottom:2px;}
+  .field-input{width:100%;font-size:11px;padding:4px 7px;border-radius:5px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text);margin-bottom:6px;}
+  .coord-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px;}
+  .coord-item label{font-size:9px;color:var(--text3);display:block;margin-bottom:2px;}
+  .coord-input{width:100%;font-size:11px;padding:3px 6px;border-radius:4px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text);}
+  .type-select{width:100%;font-size:11px;padding:4px 7px;border-radius:5px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text);margin-bottom:6px;}
+  .url-input{width:100%;font-size:10px;padding:4px 7px;border-radius:5px;border:0.5px solid var(--border2);background:var(--bg);color:var(--text);font-family:monospace;margin-bottom:6px;}
+  .section-sub{font-size:10px;font-weight:700;color:var(--text2);margin:8px 0 5px;}
+  button{font-size:12px;padding:5px 12px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg);color:var(--text);cursor:pointer;transition:all 0.1s;}
+  button.primary{background:var(--info-bg);color:var(--info-text);border-color:var(--info-border);font-weight:600;}
+  button.sm{font-size:11px;padding:3px 9px;}
+  button.block{width:100%;margin-top:6px;}
+  button.qr-btn{width:100%;margin-top:6px;font-size:12px;padding:7px;background:var(--info-bg);color:var(--info-text);border-color:var(--info-border);font-weight:600;}
+  .chip{font-size:11px;padding:3px 10px;border-radius:100px;cursor:pointer;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);transition:all 0.1s;}
+  .chip.active{background:var(--info-bg);color:var(--info-text);border-color:var(--info-border);font-weight:600;}
+
+  /* 인라인 QR 섹션 */
+  #inline-qr{display:none;margin-top:8px;padding:10px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--info-border);}
+  .qr-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .qr-title{font-size:11px;font-weight:700;color:var(--text);}
+  .qr-expire{font-size:10px;color:#E24B4A;font-weight:600;}
+  .qr-box{width:90px;height:90px;margin:6px auto;background:var(--bg);border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text3);}
+  .qr-scan-hint{font-size:10px;color:var(--text2);text-align:center;margin-bottom:2px;}
+  .qr-mode{font-size:9px;color:var(--text3);text-align:center;margin-bottom:6px;}
+  .qr-regen{width:100%;font-size:11px;padding:5px;background:var(--info-bg);color:var(--info-text);border-color:var(--info-border);font-weight:600;border-radius:6px;border-width:1px;cursor:pointer;}
+
+  /* 모달 */
+  .modal-wrap{display:none;background:rgba(0,0,0,0.45);border-radius:var(--radius);padding:16px;align-items:center;justify-content:center;min-height:180px;}
+  .modal-wrap.open{display:flex;}
+  .modal{background:var(--bg);border-radius:var(--radius-lg);border:0.5px solid var(--border);padding:20px;width:100%;max-width:340px;}
+  .modal-title{font-size:14px;font-weight:700;margin-bottom:5px;}
+  .modal-body{font-size:12px;color:var(--text2);line-height:1.75;margin-bottom:14px;}
+  .modal-footer{display:flex;justify-content:flex-end;gap:8px;}
+  .modal-trigger-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+
+  /* 설명 패널 */
+  .desc-panel{background:var(--bg);border-radius:var(--radius-lg);border:0.5px solid var(--border);padding:14px;overflow-y:auto;max-height:calc(100vh - 56px);position:sticky;top:16px;}
+  .desc-panel-title{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;}
+  .desc-purpose{font-size:11px;color:var(--text2);line-height:1.75;padding:10px;background:var(--bg2);border-radius:var(--radius);margin-bottom:12px;}
+  .desc-list-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--radius);cursor:pointer;transition:background 0.12s;border:0.5px solid transparent;margin-bottom:3px;}
+  .desc-list-item:hover{background:var(--bg2);border-color:var(--border);}
+  .desc-list-item.active{background:var(--info-bg);border-color:var(--info-border);}
+  .desc-list-num{font-size:10px;font-weight:700;color:var(--info-text);min-width:44px;font-family:monospace;}
+  .desc-list-name{font-size:12px;flex:1;}
+  .desc-list-arrow{font-size:11px;color:var(--text3);transition:transform 0.15s;}
+  .desc-list-item.active .desc-list-arrow{transform:rotate(90deg);}
+  .desc-detail{display:none;margin:0 0 4px;padding:12px;background:var(--bg2);border-radius:var(--radius);border:0.5px solid var(--border);}
+  .desc-detail.active{display:block;}
+  .desc-id{font-size:10px;font-weight:700;color:var(--info-text);margin-bottom:3px;font-family:monospace;}
+  .desc-name{font-size:13px;font-weight:700;margin-bottom:8px;}
+  .desc-body{font-size:12px;color:var(--text2);line-height:1.8;}
+  .desc-body ul{padding-left:15px;margin-top:4px;}
+  .desc-body li{margin-bottom:3px;}
+  .desc-body b{color:var(--text);}
+  .tag{display:inline-block;font-size:10px;padding:2px 8px;border-radius:100px;margin:0 3px 8px 0;}
+  .tag-view{background:var(--bg3);color:var(--text2);border:0.5px solid var(--border2);}
+  .tag-edit{background:var(--info-bg);color:var(--info-text);}
+  .tag-save{background:#e6f5ec;color:#1a6035;}
+  .tag-popup{background:var(--danger-bg);color:var(--danger-text);}
+  .tag-ui{background:var(--warn-bg);color:var(--warn-text);}
+  .info-block{margin-top:10px;padding:8px 10px;border-radius:var(--radius);font-size:11px;background:var(--info-bg);color:var(--info-text);line-height:1.75;border-left:2px solid rgba(24,95,165,0.4);}
+  .warn-block{margin-top:10px;padding:8px 10px;border-radius:var(--radius);font-size:11px;background:var(--warn-bg);color:var(--warn-text);line-height:1.75;border-left:2px solid rgba(186,117,23,0.4);}
+  .block-title{font-weight:700;display:block;margin-bottom:4px;}
+  .divider{height:0.5px;background:var(--border);margin:8px 0 10px;}
+  .section-group-label{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin:0 0 6px;}
+  .hint{font-size:10px;color:var(--text3);text-align:center;padding:8px 0 2px;}
+  .canvas-hint{font-size:9px;color:var(--text3);text-align:center;padding:5px 8px 6px;background:var(--bg3);border-top:0.5px solid var(--border);}
+</style>
+</head>
+<body>
+
+<div class="breadcrumb">
+  <a href="../index.html">이벤트 빌더</a> ›
+  <span>이미지 맵 템플릿</span> ›
+  <span style="color:var(--text);">이미지 맵 에디터</span>
+</div>
+
+<div class="layout">
+
+<!-- ───────── 좌측: 화면 목업 ───────── -->
+<div class="screen-panel">
+  <div class="screen-panel-title">
+    <span class="screen-panel-id">IMAGE_MAP_EDITOR</span>
+    이미지 맵 에디터 — 화면 목업
+  </div>
+
+  <!-- 01: 상단 바 -->
+  <div class="section" data-id="01" onclick="activate('01')">
+    <div class="section-label">IMAGE_MAP_EDITOR_01 · 상단 바</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:13px;font-weight:700;">이미지 맵 템플릿</span>
+        <span style="font-size:12px;color:var(--text2);font-weight:400;">대규모 업데이트 종합 안내</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span id="save-time" style="font-size:10px;color:var(--text3);display:none;"></span>
+        <button class="sm" onclick="event.stopPropagation();doSave()">임시저장</button>
+        <button class="sm primary" onclick="event.stopPropagation();doDeploy()">배포 대기 등록</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 에디터 프레임 -->
+  <div class="editor-frame">
+
+    <!-- 04: 디바이스·줌·세이프에리어 컨트롤 -->
+    <div class="section" data-id="04"
+         style="margin:0;border-radius:0;border-left:none;border-right:none;border-top:none;"
+         onclick="activate('04')">
+      <div class="device-bar" style="padding:0;">
+        <div class="device-btn active" id="dev-375" onclick="event.stopPropagation();setDevice(375)">375</div>
+        <div class="device-btn" id="dev-390" onclick="event.stopPropagation();setDevice(390)">390</div>
+        <div class="device-btn" id="dev-768" onclick="event.stopPropagation();setDevice(768)">768</div>
+        <div class="device-btn" id="dev-PC"  onclick="event.stopPropagation();setDevice('PC')">PC</div>
+        <div style="width:1px;height:14px;background:var(--border);margin:0 2px;"></div>
+        <div class="safe-toggle" id="safe-btn" onclick="event.stopPropagation();toggleSafeArea()">🛡 세이프 에리어</div>
+        <div class="zoom-row">
+          <button class="sm" onclick="event.stopPropagation();changeZoom(-1)">−</button>
+          <span id="zoom-val" style="min-width:36px;text-align:center;">100%</span>
+          <button class="sm" onclick="event.stopPropagation();changeZoom(1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 에디터 메인 -->
+    <div class="editor-main">
+
+      <!-- 03: 에디터 캔버스 -->
+      <div class="section" data-id="03"
+           style="margin:0;border-radius:0;border:none;background:#e0ddd6;min-height:1000px;display:flex;flex-direction:column;"
+           onclick="activate('03')">
+        <div class="canvas-area" id="canvas-area">
+          <div id="canvas-zoom-wrap">
+            <div class="phone" id="phone-mockup">
+              <div class="phone-notch" id="phone-notch"></div>
+              <div class="phone-screen" id="phone-screen">
+                <div id="phone-img">
+                  <div id="drag-preview"></div>
+                  <div class="safe-overlay" id="safe-overlay">
+                    <div class="safe-top"></div><div class="safe-bottom"></div>
+                    <div class="safe-left"></div><div class="safe-right"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="canvas-hint">드래그: 새 영역 그리기 &nbsp;·&nbsp; Delete: 삭제 &nbsp;·&nbsp; Ctrl+Z: 취소 &nbsp;·&nbsp; Ctrl+Y: 다시 실행</div>
+      </div>
+
+      <!-- 우측 속성 패널 -->
+      <div class="props-panel">
+
+        <!-- 02: 이미지 업로드 패널 -->
+        <div class="props-section" data-id="02" onclick="activate('02')">
+          <div class="props-header">↑ 이미지 업로드</div>
+          <div style="font-size:9px;color:var(--text3);margin-bottom:4px;">게임 방향 타입</div>
+          <div class="dir-chips">
+            <div class="chip active" onclick="event.stopPropagation();switchDir(this,'portrait')">세로</div>
+            <div class="chip" onclick="event.stopPropagation();switchDir(this,'landscape')">가로</div>
+            <div class="chip" onclick="event.stopPropagation();switchDir(this,'free')">자유</div>
+          </div>
+          <!-- 숨김 파일 입력 -->
+          <input type="file" id="file-portrait" accept="image/*" style="display:none" onchange="handleUpload(this,'slot-portrait')">
+          <input type="file" id="file-landscape" accept="image/*" style="display:none" onchange="handleUpload(this,'slot-landscape')">
+          <input type="file" id="file-portrait-free" accept="image/*" style="display:none" onchange="handleUpload(this,'slot-portrait-free')">
+          <input type="file" id="file-landscape-free" accept="image/*" style="display:none" onchange="handleUpload(this,'slot-landscape-free')">
+          <input type="file" id="file-pc-portrait" accept="image/*" style="display:none" onchange="handleUpload(this,'slot-pc-portrait')">
+          <input type="file" id="file-pc-landscape" accept="image/*" style="display:none" onchange="handleUpload(this,'slot-pc-landscape')">
+          <input type="file" id="file-pc-free" accept="image/*" style="display:none" onchange="handleUpload(this,'slot-pc-free')">
+
+          <!-- 세로 전용 -->
+          <div id="upload-portrait">
+            <div class="upload-slot" id="slot-portrait" onclick="event.stopPropagation();document.getElementById('file-portrait').click()">
+              <div class="slot-name">모바일 세로형 <span class="slot-req">필수</span></div>
+              <div class="slot-spec">1080×1920 · 최대 10MB · JPG/PNG/WebP</div>
+            </div>
+            <div class="upload-slot" id="slot-pc-portrait" onclick="event.stopPropagation();document.getElementById('file-pc-portrait').click()">
+              <div class="slot-name">PC <span style="font-size:9px;color:var(--text3);">선택</span></div>
+              <div class="slot-spec">1440×2560 · 최대 20MB</div>
+            </div>
+          </div>
+          <!-- 가로 전용 -->
+          <div id="upload-landscape" style="display:none;">
+            <div class="upload-slot" id="slot-landscape" onclick="event.stopPropagation();document.getElementById('file-landscape').click()">
+              <div class="slot-name">모바일 가로형 <span class="slot-req">필수</span></div>
+              <div class="slot-spec">1920×1080 · 최대 10MB · JPG/PNG/WebP</div>
+            </div>
+            <div class="upload-slot" id="slot-pc-landscape" onclick="event.stopPropagation();document.getElementById('file-pc-landscape').click()">
+              <div class="slot-name">PC <span style="font-size:9px;color:var(--text3);">선택</span></div>
+              <div class="slot-spec">1440×2560 · 최대 20MB</div>
+            </div>
+          </div>
+          <!-- 자유 비율 -->
+          <div id="upload-free" style="display:none;">
+            <div class="upload-slot" id="slot-portrait-free" onclick="event.stopPropagation();document.getElementById('file-portrait-free').click()">
+              <div class="slot-name">모바일 세로형 <span style="font-size:9px;color:var(--text3);">1장 이상 필수</span></div>
+              <div class="slot-spec">1080×1920 · 최대 10MB</div>
+            </div>
+            <div class="upload-slot" id="slot-landscape-free" onclick="event.stopPropagation();document.getElementById('file-landscape-free').click()">
+              <div class="slot-name">모바일 가로형</div>
+              <div class="slot-spec">1920×1080 · 최대 10MB</div>
+            </div>
+            <div class="upload-slot" id="slot-pc-free" onclick="event.stopPropagation();document.getElementById('file-pc-free').click()">
+              <div class="slot-name">PC <span style="font-size:9px;color:var(--text3);">선택</span></div>
+              <div class="slot-spec">1440×2560 · 최대 20MB</div>
+            </div>
+          </div>
+          <div style="font-size:9px;color:var(--info-text);margin-top:5px;line-height:1.5;">주의: 버튼·텍스트·아이콘 등 모든 시각 요소는 업로드 이미지에 포함되어야 합니다.</div>
+        </div>
+
+        <!-- 05: 핫스팟 목록 -->
+        <div class="props-section" data-id="05" onclick="activate('05')">
+          <div class="props-header">
+            핫스팟 목록 <span class="props-count" id="hs-count">4개</span>
+          </div>
+          <div id="hs-list"></div>
+          <button class="sm block" onclick="event.stopPropagation();addHotspot()">+ 새 링크 영역 추가</button>
+        </div>
+
+        <!-- 06: 핫스팟 속성 패널 -->
+        <div class="props-section" data-id="06" onclick="activate('06')">
+          <div class="props-header">
+            선택한 링크 영역
+            <span style="color:#E24B4A;cursor:pointer;font-size:14px;" onclick="event.stopPropagation();deleteSelected()">🗑</span>
+          </div>
+          <div id="props-selected-name" style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">—</div>
+          <div class="section-sub">기본</div>
+          <div class="field-label">이름</div>
+          <input class="field-input" id="prop-name" value="" placeholder="핫스팟 이름" onclick="event.stopPropagation()" oninput="updateHsName(this.value)">
+          <div class="coord-grid">
+            <div class="coord-item"><label>X (%)</label><input class="coord-input" id="prop-x" onclick="event.stopPropagation()" oninput="updateHsCoord()"></div>
+            <div class="coord-item"><label>Y (%)</label><input class="coord-input" id="prop-y" onclick="event.stopPropagation()" oninput="updateHsCoord()"></div>
+            <div class="coord-item"><label>너비 (%)</label><input class="coord-input" id="prop-w" onclick="event.stopPropagation()" oninput="updateHsCoord()"></div>
+            <div class="coord-item"><label>높이 (%)</label><input class="coord-input" id="prop-h" onclick="event.stopPropagation()" oninput="updateHsCoord()"></div>
+          </div>
+          <div class="section-sub">링크 동작</div>
+          <div class="field-label">타입</div>
+          <select class="type-select" id="prop-type" onclick="event.stopPropagation()" onchange="updateHsLinkType(this.value)">
+            <option value="deep">딥링크</option>
+            <option value="web">웹 링크</option>
+            <option value="none">없음 (비활성)</option>
+            <option value="multi">다국어 분기</option>
+          </select>
+          <div id="link-deep">
+            <div class="field-label">딥링크 URL</div>
+            <input class="url-input" id="prop-url-deep" placeholder="gamename://..." onclick="event.stopPropagation()" oninput="updateHsUrl('deep',this.value)">
+          </div>
+          <div id="link-web" style="display:none;">
+            <div class="field-label">URL (https://)</div>
+            <input class="url-input" id="prop-url-web" placeholder="https://..." onclick="event.stopPropagation()" oninput="updateHsUrl('web',this.value)">
+          </div>
+          <div id="link-none" style="display:none;">
+            <div style="font-size:10px;color:var(--text3);padding:6px;background:var(--bg2);border-radius:5px;">클릭해도 동작하지 않는 영역입니다.</div>
+          </div>
+          <div id="link-multi" style="display:none;">
+            <div class="field-label">한국어 URL</div>
+            <input class="url-input" placeholder="https://..." onclick="event.stopPropagation()">
+            <div class="field-label">영어 URL</div>
+            <input class="url-input" placeholder="https://..." onclick="event.stopPropagation()">
+            <div style="font-size:9px;color:var(--text3);">[확인 필요: 지원 언어 목록]</div>
+          </div>
+          <button class="qr-btn" onclick="event.stopPropagation();toggleQR()">테스트 QR 생성</button>
+
+          <!-- 인라인 QR -->
+          <div id="inline-qr">
+            <div class="qr-header">
+              <span class="qr-title">테스트 QR</span>
+              <span class="qr-expire" id="qr-expire-text">29:55 후 만료</span>
+            </div>
+            <div class="qr-box">QR 코드</div>
+            <div class="qr-scan-hint">스캔해서 바로 테스트</div>
+            <div class="qr-mode">테스트 모드 · 집계 제외</div>
+            <button class="qr-regen" onclick="event.stopPropagation();regenQR()">테스트 QR 재생성</button>
+          </div>
+        </div>
+
+      </div><!-- /props-panel -->
+    </div><!-- /editor-main -->
+  </div><!-- /editor-frame -->
+
+  <!-- 팝업 / 모달 섹션 -->
+  <div style="margin-top:8px;">
+    <div class="section-group-label" style="padding:0 4px 4px;">팝업 / 모달</div>
+
+    <!-- 07 -->
+    <div class="section" data-id="07" onclick="activate('07')">
+      <div class="section-label">IMAGE_MAP_EDITOR_07 · 이미지 업로드 검사 팝업</div>
+      <div class="modal-trigger-row">
+        <button class="sm" onclick="event.stopPropagation();openModal('upload-format-modal')">차단: 포맷 오류</button>
+        <button class="sm" onclick="event.stopPropagation();openModal('upload-size-modal')">차단: 용량 초과</button>
+        <button class="sm" onclick="event.stopPropagation();openModal('upload-res-modal')">경고: 해상도 미달</button>
+      </div>
+      <div class="modal-wrap" id="upload-format-modal">
+        <div class="modal"><div class="modal-title">업로드 불가</div><div class="modal-body">JPG, PNG, WebP 파일만 업로드할 수 있습니다.</div><div class="modal-footer"><button class="primary" onclick="closeModal('upload-format-modal')">확인</button></div></div>
+      </div>
+      <div class="modal-wrap" id="upload-size-modal">
+        <div class="modal"><div class="modal-title">업로드 불가</div><div class="modal-body">파일 크기가 10MB를 초과합니다.</div><div class="modal-footer"><button class="primary" onclick="closeModal('upload-size-modal')">확인</button></div></div>
+      </div>
+      <div class="modal-wrap" id="upload-res-modal">
+        <div class="modal"><div class="modal-title">해상도 경고</div><div class="modal-body">이미지 해상도가 권장 기준보다 낮아 화질이 저하될 수 있습니다.<br>계속 업로드하시겠습니까?</div><div class="modal-footer"><button onclick="closeModal('upload-res-modal')">취소</button><button class="primary" onclick="closeModal('upload-res-modal')">확인</button></div></div>
+      </div>
+    </div>
+
+    <!-- 08 -->
+    <div class="section" data-id="08" onclick="activate('08')">
+      <div class="section-label">IMAGE_MAP_EDITOR_08 · 유효성 체크 – 차단 얼럿</div>
+      <div class="modal-trigger-row">
+        <button class="sm" onclick="event.stopPropagation();openModal('block-img-modal')">차단: 이미지 미업로드</button>
+        <button class="sm" onclick="event.stopPropagation();openModal('block-url-modal')">차단: URL 형식 오류</button>
+      </div>
+      <div class="modal-wrap" id="block-img-modal">
+        <div class="modal"><div class="modal-title">저장 불가</div><div class="modal-body">이미지를 업로드해 주세요.</div><div class="modal-footer"><button class="primary" onclick="closeModal('block-img-modal')">확인</button></div></div>
+      </div>
+      <div class="modal-wrap" id="block-url-modal">
+        <div class="modal"><div class="modal-title">저장 불가</div><div class="modal-body">'URL 복사' 링크의 URL 형식이 올바르지 않습니다.<br>(예: https://... 또는 앱스킴://) 수정 후 다시 시도해 주세요.</div><div class="modal-footer"><button class="primary" onclick="closeModal('block-url-modal')">확인</button></div></div>
+      </div>
+    </div>
+
+    <!-- 09 -->
+    <div class="section" data-id="09" onclick="activate('09')">
+      <div class="section-label">IMAGE_MAP_EDITOR_09 · 유효성 체크 – 경고 컨펌</div>
+      <div class="modal-trigger-row">
+        <button class="sm" onclick="event.stopPropagation();openModal('warn-combined-modal')">경고 통합 팝업 보기</button>
+        <button class="sm" onclick="event.stopPropagation();openModal('warn-leave-modal')">이탈 컨펌</button>
+      </div>
+      <div class="modal-wrap" id="warn-combined-modal">
+        <div class="modal"><div class="modal-title">확인이 필요한 항목이 있습니다</div><div class="modal-body"><b>URL 복사</b>의 크기가 권장 터치 영역(44×44pt)보다 작습니다. 모바일에서 클릭이 어려울 수 있습니다.<br><br>계속 진행하시겠습니까?</div><div class="modal-footer"><button onclick="closeModal('warn-combined-modal')">취소</button><button class="primary" onclick="closeModal('warn-combined-modal')">확인</button></div></div>
+      </div>
+      <div class="modal-wrap" id="warn-leave-modal">
+        <div class="modal"><div class="modal-title">페이지 이탈</div><div class="modal-body">저장되지 않은 변경사항이 있습니다. 이동하시겠습니까?</div><div class="modal-footer"><button onclick="closeModal('warn-leave-modal')">머물기</button><button class="primary" onclick="closeModal('warn-leave-modal')">이동</button></div></div>
+      </div>
+    </div>
+
+    <!-- 10 -->
+    <div class="section" data-id="10" onclick="activate('10')">
+      <div class="section-label">IMAGE_MAP_EDITOR_10 · 실기기 테스트 QR</div>
+      <div style="font-size:11px;color:var(--text2);">속성 패널(06) &gt; <b>테스트 QR 생성</b> 클릭 시 해당 영역 하단에 인라인으로 표시됩니다.</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px;">유효 시간 30분 · 테스트 모드(집계 제외)</div>
+    </div>
+
+  </div><!-- /팝업 섹션 -->
+
+  <!-- 배포대기 등록 완료 모달 -->
+  <div class="modal-wrap" id="deploy-modal" style="margin-top:8px;">
+    <div class="modal">
+      <div class="modal-title">배포 대기 등록 완료</div>
+      <div class="modal-body">배포대기로 등록되었습니다.<br>QA 진행을 위해 QA 플레이스먼트에서 이벤트를 등록해 주세요.</div>
+      <div class="modal-footer">
+        <button onclick="closeModal('deploy-modal')">목록으로</button>
+        <button class="primary" onclick="closeModal('deploy-modal')">QA 플레이스먼트 이동</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint">섹션 클릭 또는 오른쪽 목록에서 기능 설명을 확인할 수 있어요</div>
+</div><!-- /screen-panel -->
+
+
+<!-- ───────── 우측: 설명 패널 ───────── -->
+<div class="desc-panel">
+  <div class="desc-panel-title">IMAGE_MAP_EDITOR · 기능 설명</div>
+  <div class="desc-purpose">이미지를 업로드하고 핫스팟을 배치해 이벤트 페이지를 구성하는 에디터.<br>비디자이너·비개발자가 <b>5분 내 발행</b>하는 UX 목표.</div>
+
+  <!-- 01 -->
+  <div class="desc-list-item" id="list-01" onclick="activate('01')" onmouseenter="highlight('01')" onmouseleave="unhighlight()">
+    <span class="desc-list-num">_01</span><span class="desc-list-name">상단 바</span><span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-01">
+    <div class="desc-id">IMAGE_MAP_EDITOR_01</div><div class="desc-name">상단 바</div>
+    <span class="tag tag-view">조회</span><span class="tag tag-save">저장</span><span class="tag tag-ui">고정 상단 바</span>
+    <div class="desc-body"><ul>
+      <li>이벤트명 읽기 전용 (변경은 기본 설정 화면에서)</li>
+      <li><b>임시저장</b>: 클릭 시 현재 시각 "마지막 저장: HH:MM" 표시 (첫 진입 시 숨김)</li>
+      <li><b>배포대기 등록</b>: 완료 시 안내 팝업 표시. QA 플레이스먼트 이동 링크 포함</li>
+      <li><b>자동 저장 없음</b> — 수동 클릭 시에만 저장</li>
+      <li>미저장 이탈 시 컨펌 팝업 (→ 09)</li>
+    </ul></div>
+  </div>
+
+  <!-- 02 -->
+  <div class="desc-list-item" id="list-02" onclick="activate('02')" onmouseenter="highlight('02')" onmouseleave="unhighlight()">
+    <span class="desc-list-num">_02</span><span class="desc-list-name">이미지 업로드 패널</span><span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-02">
+    <div class="desc-id">IMAGE_MAP_EDITOR_02</div><div class="desc-name">이미지 업로드 패널</div>
+    <span class="tag tag-edit">수정</span><span class="tag tag-ui">세그먼트 버튼 + 업로드 슬롯</span>
+    <div class="desc-body"><ul>
+      <li>게임 방향 타입 선택 <b>필수</b>: 세로 / 가로 / 자유 비율</li>
+      <li>방향 타입 변경 시 에디터 캔버스 디바이스 모양 전환 (세로형 ↔ 가로형)</li>
+      <li>슬롯 클릭 → 파일 선택 다이얼로그 열림, 선택 이미지 슬롯에 미리보기 표시</li>
+      <li>세로: 세로형 필수 + PC 선택 / 가로: 가로형 필수 + PC 선택</li>
+      <li>자유: 세로·가로 중 1장 이상 필수 + PC 선택. 미등록 방향 → 레터박스</li>
+      <li>포맷: JPG, PNG, WebP / 모바일 최대 10MB / PC 최대 20MB</li>
+      <li>업로드 완료 즉시 자동 검사 → 07번 팝업 안내</li>
+    </ul></div>
+    <div class="info-block"><span class="block-title">핵심 정책</span>버튼·아이콘 등 시각 요소는 모두 업로드 이미지에 포함. 에디터는 투명 클릭 영역(핫스팟)만 정의.</div>
+  </div>
+
+  <!-- 03 -->
+  <div class="desc-list-item" id="list-03" onclick="activate('03')" onmouseenter="highlight('03')" onmouseleave="unhighlight()">
+    <span class="desc-list-num">_03</span><span class="desc-list-name">에디터 캔버스</span><span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-03">
+    <div class="desc-id">IMAGE_MAP_EDITOR_03</div><div class="desc-name">에디터 캔버스</div>
+    <span class="tag tag-edit">수정</span><span class="tag tag-ui">인터랙티브 캔버스</span>
+    <div class="desc-body"><ul>
+      <li>이미지 위 드래그 → 사각형 핫스팟 생성</li>
+      <li>클릭 선택 → 8방향 리사이즈 핸들, 드래그로 이동/크기 조절</li>
+      <li>핫스팟 최대 <b>20개</b></li>
+      <li>색상 10종 자동 순환 부여</li>
+      <li>단축키: <b>Delete</b>(삭제) · <b>Ctrl+Z</b>(취소) · <b>Ctrl+Y</b>(다시 실행)</li>
+    </ul></div>
+    <div class="warn-block"><span class="block-title">⚠ 배포 렌더링</span>핫스팟은 배포 페이지에서 투명. 에디터의 색상 박스는 제작 편의용.</div>
+  </div>
+
+  <!-- 04 -->
+  <div class="desc-list-item" id="list-04" onclick="activate('04')" onmouseenter="highlight('04')" onmouseleave="unhighlight()">
+    <span class="desc-list-num">_04</span><span class="desc-list-name">디바이스·줌·세이프에리어</span><span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-04">
+    <div class="desc-id">IMAGE_MAP_EDITOR_04</div><div class="desc-name">디바이스·줌·세이프에리어 컨트롤</div>
+    <span class="tag tag-view">조회</span><span class="tag tag-ui">세그먼트 버튼 + 토글</span>
+    <div class="desc-body"><ul>
+      <li>디바이스 토글: <b>375 / 390 / 768 / PC(1280px+)</b> — 캔버스 폰 크기 실제 변환</li>
+      <li>줌: 50%~200% (25% 단위) — 캔버스 스케일 CSS transform 적용</li>
+      <li>세이프에리어 오버레이: 기본 ON, PC 선택 시 자동 OFF</li>
+      <li>iOS Dynamic Island 기준 고정 비율 근사값 (상 8% / 하 6% / 좌우 2%)</li>
+    </ul></div>
+  </div>
+
+  <!-- 05 -->
+  <div class="desc-list-item" id="list-05" onclick="activate('05')" onmouseenter="highlight('05')" onmouseleave="unhighlight()">
+    <span class="desc-list-num">_05</span><span class="desc-list-name">핫스팟 목록 패널</span><span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-05">
+    <div class="desc-id">IMAGE_MAP_EDITOR_05</div><div class="desc-name">핫스팟 목록 패널</div>
+    <span class="tag tag-view">조회</span><span class="tag tag-ui">스크롤 목록 + 추가 버튼</span>
+    <div class="desc-body"><ul>
+      <li>색상 인디케이터 + 이름 + 링크 타입 레이블 표시</li>
+      <li>항목 클릭 → 캔버스 핫스팟 선택 + 속성 패널 연동</li>
+      <li>캔버스 핫스팟 클릭/드래그 시 목록 및 속성 패널 동기화</li>
+      <li>최대 20개 — 도달 시 추가 버튼 비활성화</li>
+      <li>"+ 새 링크 영역 추가" → 기본 위치에 핫스팟 추가</li>
+      <li>마우스로 캔버스 내 디바이스에 영역 드래그 → 신규 핫스팟 생성</li>
+    </ul></div>
+  </div>
+
+  <!-- 06 -->
+  <div class="desc-list-item" id="list-06" onclick="activate('06')" onmouseenter="highlight('06')" onmouseleave="unhighlight()">
+    <span class="desc-list-num">_06</span><span class="desc-list-name">핫스팟 속성 패널</span><span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-06">
+    <div class="desc-id">IMAGE_MAP_EDITOR_06</div><div class="desc-name">핫스팟 속성 패널</div>
+    <span class="tag tag-edit">수정</span><span class="tag tag-ui">입력 폼 + 조건부 필드</span>
+    <div class="desc-body"><ul>
+      <li><b>이름</b>: 선택된 핫스팟 이름. 수정 시 목록에도 실시간 반영</li>
+      <li><b>X / Y / 너비 / 높이</b>: % 단위. 변경 시 디바이스 내 핫스팟 위치·크기 즉시 반영</li>
+      <li><b>링크 타입</b>: 딥링크 / 웹 링크 / 없음(비활성) / 다국어 분기</li>
+      <li><b>테스트 QR 생성</b> 클릭 → 해당 영역 하단에 인라인으로 QR 표시</li>
+    </ul></div>
+    <div class="info-block"><span class="block-title">딥링크 정책</span>유효성 검증·동작 보장은 게임팀 책임. 발행 전 테스트 QR로 실기기 확인 필수.</div>
+  </div>
+
+  <div class="divider"></div>
+  <div class="section-group-label">팝업 / 모달</div>
+
+  <!-- 07 -->
+  <div class="desc-list-item" id="list-07" onclick="activate('07')" onmouseenter="highlight('07')" onmouseleave="unhighlight()">
+    <span class="desc-list-num">_07</span><span class="desc-list-name">이미지 업로드 검사 팝업</span><span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-07">
+    <div class="desc-id">IMAGE_MAP_EDITOR_07</div><div class="desc-name">이미지 업로드 검사 팝업</div>
+    <span class="tag tag-view">조회</span><span class="tag tag-popup">팝업</span>
+    <div class="desc-body"><ul>
+      <li>업로드 완료 즉시 자동 실행</li>
+      <li><b>차단(얼럿)</b>: 포맷 오류, 용량 초과 → 업로드 차단</li>
+      <li><b>경고(컨펌)</b>: 해상도 미달 → 확인 후 업로드 또는 취소</li>
+    </ul></div>
+  </div>
+
+  <!-- 08 -->
+  <div class="desc-list-item" id="list-08" onclick="activate('08')" onmouseenter="highlight('08')" onmouseleave="unhighlight()">
+    <span class="desc-list-num">_08</span><span class="desc-list-name">유효성 체크 팝업 – 차단</span><span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-08">
+    <div class="desc-id">IMAGE_MAP_EDITOR_08</div><div class="desc-name">유효성 체크 – 차단 얼럿</div>
+    <span class="tag tag-view">조회</span><span class="tag tag-popup">팝업</span>
+    <div class="desc-body"><ul>
+      <li>임시저장·배포대기 등록 클릭 시 실행</li>
+      <li>차단 케이스: 이미지 미업로드, URL 형식 오류</li>
+      <li>해소 전 저장·등록 불가</li>
+    </ul></div>
+  </div>
+
+  <!-- 09 -->
+  <div class="desc-list-item" id="list-09" onclick="activate('09')" onmouseenter="highlight('09')" onmouseleave="unhighlight()">
+    <span class="desc-list-num">_09</span><span class="desc-list-name">유효성 체크 팝업 – 경고</span><span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-09">
+    <div class="desc-id">IMAGE_MAP_EDITOR_09</div><div class="desc-name">유효성 체크 – 경고 컨펌</div>
+    <span class="tag tag-view">조회</span><span class="tag tag-popup">팝업</span>
+    <div class="desc-body"><ul>
+      <li>차단 없고 경고 있을 때만 표시</li>
+      <li>복수 경고 → 하나의 팝업에 목록 통합</li>
+      <li>경고 케이스: 링크 미설정, 터치 영역 미달, 세이프에리어 침범</li>
+      <li>[확인] → 저장/등록 진행 / [취소] → 에디터 유지</li>
+    </ul></div>
+  </div>
+
+  <!-- 10 -->
+  <div class="desc-list-item" id="list-10" onclick="activate('10')" onmouseenter="highlight('10')" onmouseleave="unhighlight()">
+    <span class="desc-list-num">_10</span><span class="desc-list-name">실기기 테스트 QR</span><span class="desc-list-arrow">›</span>
+  </div>
+  <div class="desc-detail" id="desc-10">
+    <div class="desc-id">IMAGE_MAP_EDITOR_10</div><div class="desc-name">실기기 테스트 QR</div>
+    <span class="tag tag-view">조회</span><span class="tag tag-ui">인라인 QR 패널</span>
+    <div class="desc-body"><ul>
+      <li>속성 패널(06) &gt; 테스트 QR 생성 클릭 시 해당 영역 하단에 인라인 표시</li>
+      <li>딥링크 동작 확인 전용 (인게임)</li>
+      <li>테스트 모드 플래그 → 집계 제외</li>
+      <li>QR 유효 시간: <b>30분</b> (카운트다운 표시)</li>
+      <li>만료 시 재생성 버튼으로 갱신</li>
+    </ul></div>
+  </div>
+
+</div><!-- /desc-panel -->
+</div><!-- /layout -->
+
+<script>
+/* ─────────────────────────────────────────
+   데이터 모델
+───────────────────────────────────────── */
+const HS_COLORS = ['#378ADD','#1D9E75','#D85A30','#D4537E','#E0A015','#7B61E0','#34A8A8','#C45B26','#4A7FBF','#534AB7'];
+let hotspots = [
+  {id:1,name:'신규 던전',x:13,y:26,w:74,h:12,ci:0,lt:'deep',url:'maplestory://event/1'},
+  {id:2,name:'시스템 개편',x:13,y:42,w:74,h:12,ci:1,lt:'deep',url:'maplestory://event/2'},
+  {id:3,name:'업데이트 노트',x:13,y:58,w:74,h:11,ci:2,lt:'web',url:'https://nexon.com/'},
+  {id:4,name:'URL 복사',x:25,y:74,w:50,h:10,ci:3,lt:'none',url:''},
+];
+let selectedId = 2;
+let nextId = 5;
+let colorCursor = 4;
+let undoStack = [];
+let redoStack = [];
+let dirType = 'portrait'; // portrait | landscape | free
+
+/* ─────────────────────────────────────────
+   디바이스 / 줌 / 방향 상태
+───────────────────────────────────────── */
+// device widths (CSS px) for each size in portrait
+const DEVICE_W = {375:164, 390:170, 768:280, PC:360};
+const DEVICE_H_RATIO = 1.85; // portrait h = w * ratio
+const DEVICE_H_LANDSCAPE_RATIO = 0.55; // landscape h = w * ratio
+const ZOOMS = [50,75,100,125,150,175,200];
+let zoomIdx = 2;
+let currentDevice = 375;
+let safeOn = true;
+
+function getPhoneImg() { return document.getElementById('phone-img'); }
+function getPhoneMockup() { return document.getElementById('phone-mockup'); }
+
+function applyPhoneSize() {
+  const w = DEVICE_W[currentDevice];
+  const phone = getPhoneMockup();
+  const img = getPhoneImg();
+  const isLandscape = (dirType === 'landscape');
+  const isFree = (dirType === 'free');
+
+  let imgW, imgH;
+  if (isLandscape) {
+    imgW = Math.round(w * 1.65);
+    imgH = Math.round(imgW * DEVICE_H_LANDSCAPE_RATIO);
+    phone.style.width = imgW + 'px';
+    // notch hidden for landscape
+    document.getElementById('phone-notch').style.display = 'none';
+    phone.style.borderRadius = '16px';
+  } else {
+    imgW = w;
+    imgH = Math.round(w * DEVICE_H_RATIO);
+    phone.style.width = (w + 16) + 'px';
+    document.getElementById('phone-notch').style.display = '';
+    phone.style.borderRadius = (currentDevice === 'PC') ? '8px' : '24px';
+  }
+  img.style.width = imgW + 'px';
+  img.style.height = imgH + 'px';
+  renderHotspots();
+}
+
+function applyZoom() {
+  const z = ZOOMS[zoomIdx] / 100;
+  document.getElementById('canvas-zoom-wrap').style.transform = 'scale('+z+')';
+  document.getElementById('zoom-val').textContent = ZOOMS[zoomIdx]+'%';
+}
+
+/* ─────────────────────────────────────────
+   렌더링
+───────────────────────────────────────── */
+function renderHotspots() {
+  const img = getPhoneImg();
+  // remove existing hs elements (keep drag-preview and safe-overlay)
+  img.querySelectorAll('.hs-el').forEach(e => e.remove());
+  hotspots.forEach(hs => {
+    const el = document.createElement('div');
+    el.className = 'hs-el' + (hs.id === selectedId ? ' selected' : '');
+    el.dataset.id = hs.id;
+    el.style.left = hs.x+'%';
+    el.style.top = hs.y+'%';
+    el.style.width = hs.w+'%';
+    el.style.height = hs.h+'%';
+    const c = HS_COLORS[hs.ci % HS_COLORS.length];
+    el.style.borderColor = c;
+    el.style.background = hexAlpha(c, 0.22);
+    el.style.color = c;
+    el.textContent = hs.name;
+    if (hs.id === selectedId) addResizeHandles(el);
+    // click to select
+    el.addEventListener('mousedown', e => { e.stopPropagation(); startMove(e, hs.id); });
+    img.insertBefore(el, img.firstChild);
+  });
+  renderHsList();
+  syncPropsPanel();
+}
+
+function addResizeHandles(el) {
+  const dirs = ['nw','n','ne','e','se','s','sw','w'];
+  dirs.forEach(d => {
+    const h = document.createElement('div');
+    h.className = 'rh rh-'+d;
+    h.dataset.dir = d;
+    h.addEventListener('mousedown', e => { e.stopPropagation(); startResize(e, d); });
+    el.appendChild(h);
+  });
+}
+
+function renderHsList() {
+  const list = document.getElementById('hs-list');
+  list.innerHTML = '';
+  hotspots.forEach(hs => {
+    const item = document.createElement('div');
+    item.className = 'hs-item' + (hs.id === selectedId ? ' selected' : '');
+    const dot = document.createElement('div');
+    dot.className = 'hs-dot';
+    dot.style.background = HS_COLORS[hs.ci % HS_COLORS.length];
+    const name = document.createElement('span');
+    name.className = 'hs-name';
+    name.textContent = hs.name;
+    const type = document.createElement('span');
+    type.className = 'hs-type ' + (hs.lt==='deep'?'hs-type-deep':hs.lt==='web'?'hs-type-web':'hs-type-none');
+    type.textContent = hs.lt==='deep'?'딥링크':hs.lt==='web'?'웹링크':'미설정';
+    item.appendChild(dot); item.appendChild(name); item.appendChild(type);
+    if (!hs.url && hs.lt !== 'none') {
+      const w = document.createElement('span'); w.className='hs-warn'; w.textContent='⚠'; item.appendChild(w);
+    }
+    item.addEventListener('click', () => { selectHotspot(hs.id); });
+    list.appendChild(item);
+  });
+  document.getElementById('hs-count').textContent = hotspots.length+'개';
+}
+
+function syncPropsPanel() {
+  const hs = hotspots.find(h => h.id === selectedId);
+  if (!hs) {
+    document.getElementById('props-selected-name').textContent = '—';
+    return;
+  }
+  document.getElementById('props-selected-name').textContent = hs.name;
+  document.getElementById('prop-name').value = hs.name;
+  document.getElementById('prop-x').value = hs.x;
+  document.getElementById('prop-y').value = hs.y;
+  document.getElementById('prop-w').value = hs.w;
+  document.getElementById('prop-h').value = hs.h;
+  const sel = document.getElementById('prop-type');
+  sel.value = hs.lt;
+  switchLinkFields(hs.lt);
+  document.getElementById('prop-url-deep').value = hs.lt==='deep' ? (hs.url||'') : '';
+  document.getElementById('prop-url-web').value = hs.lt==='web' ? (hs.url||'') : '';
+}
+
+function selectHotspot(id) {
+  selectedId = id;
+  renderHotspots();
+  activate('06');
+}
+
+/* ─────────────────────────────────────────
+   드래그: 새 핫스팟 그리기
+───────────────────────────────────────── */
+let drawing = false, dragStart = null;
+const preview = document.getElementById('drag-preview');
+
+function getImgRect() { return getPhoneImg().getBoundingClientRect(); }
+
+document.getElementById('phone-img').addEventListener('mousedown', e => {
+  if (e.target !== getPhoneImg() && !e.target.classList.contains('safe-overlay') &&
+      !e.target.classList.contains('safe-top') && !e.target.classList.contains('safe-bottom') &&
+      !e.target.classList.contains('safe-left') && !e.target.classList.contains('safe-right')) return;
+  if (hotspots.length >= 20) return;
+  drawing = true;
+  const r = getImgRect();
+  dragStart = { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height };
+  preview.style.display = 'block';
+  preview.style.left = dragStart.x+'px'; preview.style.top = dragStart.y+'px';
+  preview.style.width = '0'; preview.style.height = '0';
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', e => {
+  if (!drawing) return;
+  const r = getImgRect();
+  const cx = e.clientX - r.left, cy = e.clientY - r.top;
+  const x = Math.min(dragStart.x, cx), y = Math.min(dragStart.y, cy);
+  const w = Math.abs(cx - dragStart.x), h = Math.abs(cy - dragStart.y);
+  preview.style.left = x+'px'; preview.style.top = y+'px';
+  preview.style.width = w+'px'; preview.style.height = h+'px';
+
+  if (movingId !== null) {
+    const hs = hotspots.find(h => h.id === movingId);
+    if (hs) {
+      const dx = (e.clientX - moveLastX) / dragStart.w * 100;
+      const dy = (e.clientY - moveLastY) / dragStart.h * 100;
+      hs.x = clamp(hs.x + dx, 0, 100 - hs.w);
+      hs.y = clamp(hs.y + dy, 0, 100 - hs.h);
+      moveLastX = e.clientX; moveLastY = e.clientY;
+      renderHotspots();
+    }
+  }
+});
+
+document.addEventListener('mouseup', e => {
+  if (drawing) {
+    drawing = false;
+    preview.style.display = 'none';
+    const r = getImgRect();
+    const cx = e.clientX - r.left, cy = e.clientY - r.top;
+    const x = Math.min(dragStart.x, cx), y = Math.min(dragStart.y, cy);
+    const w = Math.abs(cx - dragStart.x), h = Math.abs(cy - dragStart.y);
+    if (w > 8 && h > 8) {
+      pushUndo();
+      const ci = colorCursor % HS_COLORS.length; colorCursor++;
+      const newHs = {
+        id: nextId++,
+        name: '링크 영역 '+nextId,
+        x: clamp(Math.round(x / dragStart.w * 100), 0, 99),
+        y: clamp(Math.round(y / dragStart.h * 100), 0, 99),
+        w: clamp(Math.round(w / dragStart.w * 100), 1, 100),
+        h: clamp(Math.round(h / dragStart.h * 100), 1, 100),
+        ci, lt:'none', url:''
+      };
+      hotspots.push(newHs);
+      selectedId = newHs.id;
+      renderHotspots();
+    }
+  }
+  if (movingId !== null) { movingId = null; }
+  if (resizingId !== null) { resizingId = null; resizeDir = null; }
+});
+
+/* ─────────────────────────────────────────
+   드래그: 핫스팟 이동
+───────────────────────────────────────── */
+let movingId = null, moveLastX, moveLastY;
+function startMove(e, id) {
+  if (e.target.classList.contains('rh')) return;
+  selectHotspot(id);
+  movingId = id;
+  moveLastX = e.clientX; moveLastY = e.clientY;
+  const r = getImgRect();
+  dragStart = { x:0, y:0, w:r.width, h:r.height };
+  e.preventDefault();
+}
+
+/* ─────────────────────────────────────────
+   드래그: 핫스팟 리사이즈
+───────────────────────────────────────── */
+let resizingId = null, resizeDir = null, resizeStart = null;
+function startResize(e, dir) {
+  resizingId = selectedId;
+  resizeDir = dir;
+  const hs = hotspots.find(h => h.id === selectedId);
+  const r = getImgRect();
+  resizeStart = { clientX: e.clientX, clientY: e.clientY, ...hs, imgW: r.width, imgH: r.height };
+  e.preventDefault();
+
+  function onMove(ev) {
+    if (!resizingId) return;
+    const hs = hotspots.find(h => h.id === resizingId);
+    if (!hs) return;
+    const dx = (ev.clientX - resizeStart.clientX) / resizeStart.imgW * 100;
+    const dy = (ev.clientY - resizeStart.clientY) / resizeStart.imgH * 100;
+    const d = resizeDir;
+    if (d.includes('e')) hs.w = Math.max(2, resizeStart.w + dx);
+    if (d.includes('s')) hs.h = Math.max(2, resizeStart.h + dy);
+    if (d.includes('w')) { hs.x = Math.min(resizeStart.x+resizeStart.w-2, resizeStart.x+dx); hs.w = Math.max(2, resizeStart.w-dx); }
+    if (d.includes('n')) { hs.y = Math.min(resizeStart.y+resizeStart.h-2, resizeStart.y+dy); hs.h = Math.max(2, resizeStart.h-dy); }
+    renderHotspots();
+  }
+  function onUp() {
+    resizingId = null; resizeDir = null;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+/* ─────────────────────────────────────────
+   속성 패널 입력 → 핫스팟 업데이트
+───────────────────────────────────────── */
+function updateHsName(v) {
+  const hs = hotspots.find(h => h.id === selectedId); if (!hs) return;
+  hs.name = v;
+  document.getElementById('props-selected-name').textContent = v || '—';
+  renderHsList();
+  const el = document.querySelector('.hs-el[data-id="'+selectedId+'"]');
+  if (el) el.childNodes[0] && (el.childNodes[0].nodeType === 3) && (el.childNodes[0].textContent = v);
+  const elAll = document.querySelectorAll('.hs-el');
+  elAll.forEach(e => { if (+e.dataset.id === selectedId) {
+    Array.from(e.childNodes).forEach(n => { if(n.nodeType===3) n.textContent=v; });
+  }});
+}
+
+function updateHsCoord() {
+  const hs = hotspots.find(h => h.id === selectedId); if (!hs) return;
+  const x=parseFloat(document.getElementById('prop-x').value);
+  const y=parseFloat(document.getElementById('prop-y').value);
+  const w=parseFloat(document.getElementById('prop-w').value);
+  const h=parseFloat(document.getElementById('prop-h').value);
+  if (!isNaN(x)) hs.x=clamp(x,0,100);
+  if (!isNaN(y)) hs.y=clamp(y,0,100);
+  if (!isNaN(w)) hs.w=clamp(w,1,100);
+  if (!isNaN(h)) hs.h=clamp(h,1,100);
+  const el = document.querySelector('.hs-el[data-id="'+selectedId+'"]');
+  if (el) {
+    el.style.left=hs.x+'%'; el.style.top=hs.y+'%';
+    el.style.width=hs.w+'%'; el.style.height=hs.h+'%';
+  }
+}
+
+function updateHsLinkType(v) {
+  const hs = hotspots.find(h => h.id === selectedId); if (!hs) return;
+  hs.lt = v; switchLinkFields(v); renderHsList();
+}
+
+function updateHsUrl(type, v) {
+  const hs = hotspots.find(h => h.id === selectedId); if (!hs) return;
+  if (hs.lt === type) hs.url = v;
+}
+
+function switchLinkFields(v) {
+  ['deep','web','none','multi'].forEach(t => {
+    document.getElementById('link-'+t).style.display = (t===v) ? '' : 'none';
+  });
+}
+
+/* ─────────────────────────────────────────
+   핫스팟 추가 / 삭제
+───────────────────────────────────────── */
+function addHotspot() {
+  if (hotspots.length >= 20) return;
+  pushUndo();
+  const ci = colorCursor % HS_COLORS.length; colorCursor++;
+  const newHs = {id:nextId++, name:'링크 영역 '+nextId, x:10, y:10, w:40, h:20, ci, lt:'none', url:''};
+  hotspots.push(newHs);
+  selectedId = newHs.id;
+  renderHotspots();
+  activate('06');
+}
+
+function deleteSelected() {
+  if (!selectedId) return;
+  pushUndo();
+  hotspots = hotspots.filter(h => h.id !== selectedId);
+  selectedId = hotspots.length ? hotspots[hotspots.length-1].id : null;
+  renderHotspots();
+}
+
+/* ─────────────────────────────────────────
+   Undo / Redo
+───────────────────────────────────────── */
+function pushUndo() {
+  undoStack.push(JSON.stringify({hotspots, selectedId, colorCursor}));
+  if (undoStack.length > 20) undoStack.shift();
+  redoStack = [];
+}
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(JSON.stringify({hotspots, selectedId, colorCursor}));
+  const s = JSON.parse(undoStack.pop());
+  hotspots = s.hotspots; selectedId = s.selectedId; colorCursor = s.colorCursor;
+  renderHotspots();
+}
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(JSON.stringify({hotspots, selectedId, colorCursor}));
+  const s = JSON.parse(redoStack.pop());
+  hotspots = s.hotspots; selectedId = s.selectedId; colorCursor = s.colorCursor;
+  renderHotspots();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') deleteSelected();
+  }
+  if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo(); }
+  if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo(); }
+});
+
+/* ─────────────────────────────────────────
+   섹션 활성화 + 스크롤
+───────────────────────────────────────── */
+function activate(id) {
+  const baseId = id.split('-')[0];
+  document.querySelectorAll('.section,.props-section').forEach(s => s.classList.remove('active'));
+  // find section by data-id
+  const sec = document.querySelector('[data-id="'+baseId+'"]');
+  if (sec) {
+    sec.classList.add('active');
+    sec.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+  document.querySelectorAll('.desc-list-item').forEach(i => i.classList.remove('active'));
+  const listItem = document.getElementById('list-'+id);
+  if (listItem) listItem.classList.add('active');
+  const detail = document.getElementById('desc-'+id);
+  const isOpen = detail && detail.classList.contains('active');
+  document.querySelectorAll('.desc-detail').forEach(d => d.classList.remove('active'));
+  if (detail && !isOpen) detail.classList.add('active');
+  if (isOpen && listItem) listItem.classList.remove('active');
+}
+
+function highlight(id) {
+  const baseId = id.split('-')[0];
+  document.querySelectorAll('.section,.props-section').forEach(s => s.classList.remove('highlight'));
+  const sec = document.querySelector('[data-id="'+baseId+'"]');
+  if (sec) sec.classList.add('highlight');
+}
+function unhighlight() {
+  document.querySelectorAll('.section,.props-section').forEach(s => s.classList.remove('highlight'));
+}
+
+/* ─────────────────────────────────────────
+   모달
+───────────────────────────────────────── */
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function doSave() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const el = document.getElementById('save-time');
+  el.textContent = '마지막 저장: '+hh+':'+mm;
+  el.style.display = '';
+}
+
+function doDeploy() {
+  openModal('deploy-modal');
+}
+
+/* ─────────────────────────────────────────
+   디바이스 / 줌 / 세이프에리어
+───────────────────────────────────────── */
+function setDevice(size) {
+  currentDevice = size;
+  document.querySelectorAll('.device-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('dev-'+size).classList.add('active');
+  const overlay = document.getElementById('safe-overlay');
+  if (size === 'PC') { overlay.style.display = 'none'; }
+  else if (safeOn) { overlay.style.display = ''; }
+  applyPhoneSize();
+}
+
+function toggleSafeArea() {
+  const btn = document.getElementById('safe-btn');
+  const overlay = document.getElementById('safe-overlay');
+  safeOn = !safeOn;
+  overlay.style.display = safeOn ? '' : 'none';
+  btn.classList.toggle('off', !safeOn);
+}
+
+function changeZoom(dir) {
+  zoomIdx = Math.max(0, Math.min(ZOOMS.length-1, zoomIdx+dir));
+  applyZoom();
+}
+
+/* ─────────────────────────────────────────
+   방향 타입 전환
+───────────────────────────────────────── */
+function switchDir(el, type) {
+  dirType = type;
+  el.closest('.dir-chips').querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('upload-portrait').style.display = (type==='portrait') ? '' : 'none';
+  document.getElementById('upload-landscape').style.display = (type==='landscape') ? '' : 'none';
+  document.getElementById('upload-free').style.display = (type==='free') ? '' : 'none';
+  applyPhoneSize();
+}
+
+/* ─────────────────────────────────────────
+   파일 업로드
+───────────────────────────────────────── */
+function handleUpload(input, slotId) {
+  const file = input.files[0]; if (!file) return;
+  const slot = document.getElementById(slotId); if (!slot) return;
+  const url = URL.createObjectURL(file);
+  // show preview
+  slot.classList.add('has-img');
+  let img = slot.querySelector('img');
+  if (!img) { img = document.createElement('img'); slot.insertBefore(img, slot.firstChild); }
+  img.src = url;
+  // also update canvas background
+  getPhoneImg().style.backgroundImage = 'url('+url+')';
+  getPhoneImg().style.backgroundSize = 'cover';
+  getPhoneImg().style.backgroundPosition = 'center';
+  getPhoneImg().classList.add('has-image');
+}
+
+/* ─────────────────────────────────────────
+   인라인 QR
+───────────────────────────────────────── */
+let qrSec = 29*60+55;
+let qrInterval = null;
+let qrVisible = false;
+
+function toggleQR() {
+  qrVisible = !qrVisible;
+  const el = document.getElementById('inline-qr');
+  el.style.display = qrVisible ? 'block' : 'none';
+  if (qrVisible) startQrTimer();
+  else stopQrTimer();
+}
+
+function regenQR() {
+  qrSec = 29*60+55;
+  updateQrDisplay();
+}
+
+function startQrTimer() {
+  stopQrTimer();
+  qrInterval = setInterval(() => {
+    if (qrSec > 0) qrSec--;
+    updateQrDisplay();
+  }, 1000);
+}
+
+function stopQrTimer() {
+  if (qrInterval) { clearInterval(qrInterval); qrInterval = null; }
+}
+
+function updateQrDisplay() {
+  const m = Math.floor(qrSec/60), s = qrSec%60;
+  const text = String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')+' 후 만료';
+  const el = document.getElementById('qr-expire-text');
+  if (el) el.textContent = text;
+}
+
+/* ─────────────────────────────────────────
+   유틸
+───────────────────────────────────────── */
+function hexAlpha(hex, a) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return 'rgba('+r+','+g+','+b+','+a+')';
+}
+function clamp(v, mn, mx) { return Math.max(mn, Math.min(mx, v)); }
+
+/* ─────────────────────────────────────────
+   초기화
+───────────────────────────────────────── */
+renderHotspots();
+applyPhoneSize();
+applyZoom();
+</script>
+</body>
+</html>

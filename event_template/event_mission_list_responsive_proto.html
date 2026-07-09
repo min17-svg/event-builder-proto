@@ -1,0 +1,3306 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>미션 리스트형 이벤트 화면 (반응형) - 목업 프로토타입</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>
+/* ─── Pretendard from CDN ─── */
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+
+/* ════════════════════════════════════════════
+   RESET & BASE  (무채색 전용 — 흰/회/검)
+════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  font-family: 'Pretendard', -apple-system, 'Noto Sans KR', sans-serif;
+  background: #1a1a1a;
+  overflow: hidden;
+}
+
+.event-builder-root { display: flex; height: 100vh; overflow: hidden; }
+
+/* ════════════════════════════════════════════
+   PREVIEW WRAPPER (좌측)
+════════════════════════════════════════════ */
+.preview-wrapper {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #4d4d4d;
+}
+
+/* ─── 디바이스 전환 툴바 ─── */
+.device-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  background: #2f2f2f;
+  border-bottom: 1px solid #1f1f1f;
+}
+.device-toolbar-group { display: flex; gap: 6px; }
+.device-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid #5a5a5a;
+  border-radius: 8px;
+  background: #3c3c3c;
+  color: #d6d6d6;
+  font-family: 'Pretendard', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: -0.2px;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+  white-space: nowrap;
+}
+.device-btn:hover { background: #484848; }
+.device-btn.is-active { background: #fff; border-color: #fff; color: #1a1a1a; }
+.device-btn svg { display: block; }
+.device-btn svg path, .device-btn svg rect { stroke: currentColor; }
+
+.device-toolbar-spacer { flex: 1; }
+.device-size-label {
+  font-family: 'Pretendard', sans-serif;
+  font-weight: 500;
+  font-size: 12px;
+  color: #9a9a9a;
+  white-space: nowrap;
+}
+
+/* ─── 배경색 컨트롤 (단일 변수 데모) ─── */
+.device-bg-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 14px;
+  border-left: 1px solid #5a5a5a;
+}
+.device-bg-control label { font-size: 12px; font-weight: 600; color: #c9c9c9; }
+.device-bg-control input[type="color"] {
+  width: 28px; height: 28px;
+  border: 1px solid #6a6a6a; border-radius: 6px;
+  background: none; cursor: pointer; padding: 2px;
+}
+.device-bg-control .hex { font-size: 12px; color: #9a9a9a; width: 64px; }
+
+/* ─── 커스텀 화면 비율 입력 ─── */
+.device-custom-control { display: flex; align-items: center; gap: 6px; padding-left: 12px; border-left: 1px solid #5a5a5a; }
+.device-custom-control .dim-input {
+  width: 64px; height: 30px;
+  background: #3c3c3c; border: 1px solid #5a5a5a; border-radius: 6px;
+  color: #e6e6e6; font-size: 12px; text-align: center; padding: 0 4px;
+}
+.device-custom-control .dim-x, .device-custom-control .dim-unit { color: #9a9a9a; font-size: 12px; }
+
+/* ─── 디바이스 스테이지 ─── */
+.device-stage {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 28px;
+}
+
+/* ════════════════════════════════════════════
+   DEVICE FRAME — 반응형 프레임
+   width/height 가 디바이스별로 전환됨
+════════════════════════════════════════════ */
+.device-frame {
+  --event-bg-color: #d7dade;   /* ← 콘솔 설정값. 배경 + 그라데이션 끝 색상 동시 제어 */
+  position: relative;
+  flex-shrink: 0;
+  width: 1280px;
+  height: 720px;
+  max-height: calc(100vh - 150px);
+  background: var(--event-bg-color);
+  border-radius: 20px;
+  border: 1px solid #000;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  overflow: hidden;
+  transition: width .4s cubic-bezier(.4,0,.2,1), height .4s cubic-bezier(.4,0,.2,1);
+}
+/* 드래그 리사이즈 중에는 트랜지션 해제(즉시 반응) */
+.device-frame.is-resizing { transition: none; }
+
+/* 웹뷰 전체 스케일 래퍼
+   - 기본: 프레임을 그대로 채움(inset:0) → 375px 이상에서는 회귀 없음
+   - 최소 폭(375px) 미만: JS가 width/height/transform(scale)을 부여해 reflow 없이 비율 축소 */
+.ev-scale {
+  position: absolute;
+  inset: 0;
+  transform-origin: top left;
+  transition: transform .4s cubic-bezier(.4,0,.2,1);
+}
+.device-frame.is-resizing .ev-scale { transition: none; }
+
+/* 우하단 드래그 리사이즈 핸들 (프로토 도구) */
+.resize-handle {
+  position: absolute; right: 0; bottom: 0;
+  width: 26px; height: 26px;
+  z-index: 50;
+  cursor: nwse-resize;
+  display: flex; align-items: flex-end; justify-content: flex-end;
+  padding: 4px;
+  background: rgba(255,255,255,0.55);
+  border-radius: 9px 0 18px 0;
+}
+.resize-handle:hover { background: rgba(255,255,255,0.8); }
+
+/* 이벤트 웹뷰 본문 (스크롤 컨테이너) */
+.ev-body {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: margin-left .35s cubic-bezier(.4,0,.2,1);
+  scrollbar-width: none;
+}
+.ev-body::-webkit-scrollbar { display: none; }
+
+/* ════════════════════════════════════════════
+   LNB
+════════════════════════════════════════════ */
+.ev-lnb {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 16%;                   /* 프레임 폭 비율 스케일(데이터-디바이스로 일부 고정) */
+  background: #5b5e63;          /* LNB 배경(무채색) — 콘솔 설정 가능 영역 */
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  scrollbar-width: none;
+  transform: translateX(-100%); /* 모든 디바이스 공통: 기본 접힘(햄버거 드로어) */
+  transition: transform .35s cubic-bezier(.4,0,.2,1);
+}
+.ev-lnb::-webkit-scrollbar { display: none; }
+.ev-lnb-item {
+  flex-shrink: 0;
+  width: 100%;
+  aspect-ratio: 280 / 160;     /* 원본 LNB 아이템 비율(280×160) 유지 → 폭에 따라 높이 자동 */
+  height: auto;
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(0,0,0,0.18);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 17px;
+  letter-spacing: -0.2px;
+  overflow: hidden;
+}
+.ev-lnb-item[data-state="Active"] { background: #3e4044; }
+.ev-lnb-item p {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* 닫기(드로어) 버튼 — 드로어이므로 항상 노출 */
+.ev-lnb-close {
+  display: flex;
+  position: absolute; top: 10px; right: 10px;
+  width: 30px; height: 30px;
+  background: rgba(0,0,0,0.3); border: none; border-radius: 6px;
+  cursor: pointer; align-items: center; justify-content: center;
+}
+
+/* 딤 오버레이 (세로모드 드로어용) */
+.ev-dim {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 25;
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s ease;
+}
+
+/* ════════════════════════════════════════════
+   HEADER
+════════════════════════════════════════════ */
+/* HERO: 키비주얼을 최상단에 두고 헤더가 그 위에 겹침 */
+.ev-hero { position: relative; }
+
+.ev-header {
+  position: absolute;              /* 키비주얼 위에 겹쳐 얹힘 */
+  top: 0; left: 0; right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;         /* 좌측 컨트롤 스택을 상단 정렬 */
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0));
+}
+/* 좌상단 컨트롤: 햄버거 (세로형 LNB 드로어 토글용) */
+.ev-topleft {
+  position: absolute;          /* 스크롤과 무관하게 웹뷰(.ev-scale) 좌상단에 고정 */
+  top: 12px; left: 16px;       /* 기존 헤더 패딩(12·16)과 동일 위치 */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  z-index: 15;                 /* 본문 위 / 드로어 딤(25)·LNB(30)·팝업(200) 아래 */
+}
+/* 우상단 컨트롤: 기능 버튼(더보기) — 우측 상단 고정 */
+.ev-topright {
+  position: absolute;
+  top: 12px; right: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  z-index: 15;
+}
+.ev-hamburger {
+  display: flex;
+  width: 34px; height: 34px;
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.45);
+  border: none; border-radius: 8px;
+  cursor: pointer;
+  flex-direction: column;            /* 막대 3개를 세로로 쌓음 */
+  align-items: center; justify-content: center;
+}
+.ev-hamburger span { display:block; width:16px; height:2px; background:#fff; margin:2.5px 0; border-radius:2px; }
+/* 더보기(⋯) — 햄버거 바로 아래 */
+.ev-more-btn {
+  display: flex;
+  width: 34px; height: 34px; flex-shrink: 0;
+  background: rgba(0,0,0,0.55); border: none; border-radius: 8px;
+  color: #fff; cursor: pointer; font-size: 18px; line-height: 1;
+  align-items: center; justify-content: center;
+}
+.ev-more-btn:hover { background: rgba(0,0,0,0.78); }
+/* 기능 버튼 묶음 — 기본 숨김, ⋯ 클릭 시 더보기 아래(우측 정렬)로 펼침 */
+.ev-header-actions { display: none; }
+.ev-header-actions.is-expanded {
+  display: flex; flex-direction: column; gap: 6px;
+  position: absolute; top: calc(100% + 8px); right: 0;
+  background: rgba(0,0,0,0.82); padding: 10px; border-radius: 10px;
+  z-index: 20;
+}
+.ev-action-btn {
+  height: 34px; padding: 0 14px;
+  background: rgba(0,0,0,0.55); color: #fff;
+  border: none; border-radius: 7px;
+  font-weight: 600; font-size: 12px; letter-spacing: -0.2px;
+  cursor: pointer; white-space: nowrap; text-align: left;
+}
+.ev-action-btn:hover { background: rgba(0,0,0,0.92); }
+
+.ev-period {
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 0;
+  align-self: flex-start;
+  margin-left: 46px;               /* 좌상단 고정 버튼(34px+gap) 영역 확보 — 겹침 방지 */
+  padding: 8px 64px 8px 14px;      /* 우측은 그라데이션 페이드 여백 */
+  border-radius: 6px;
+  background: linear-gradient(to right, rgba(0,0,0,0.6), rgba(0,0,0,0));  /* 기간 박스 그라데이션 */
+}
+.ev-period-row { display: flex; align-items: center; gap: 8px; }
+.ev-period-row .lbl { font-weight: 700; font-size: 12px; color: #fff; flex-shrink: 0; }
+.ev-period-row .div { width: 1px; height: 11px; background: rgba(255,255,255,0.4); flex-shrink: 0; }
+.ev-period-row .val { font-weight: 500; font-size: 12px; color: rgba(255,255,255,0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev-period-row.hidden { display: none; }
+
+/* ════════════════════════════════════════════
+   VISUAL (키비주얼 + 3방향 그라데이션)
+════════════════════════════════════════════ */
+.ev-visual {
+  position: relative;
+  margin: 0 auto;               /* 키비주얼 가로 최대 1920px → 초과분은 배경색(--event-bg-color) 노출 */
+  max-width: 1920px;
+  height: 420px;
+  overflow: hidden;
+}
+.ev-visual-img {
+  position: absolute; inset: 0;
+  /* 키비주얼 = 이미지 1장. 그라데이션은 '이미지에 포함된' 부분이며 프론트 오버레이가 아님.
+     아래 background는 실제 이미지 등록 전 플레이스홀더 —
+     맨 위 두 레이어(좌·우·하단 페이드)가 이미지에 그라데이션이 포함된 모습을 표현.
+     ★ 이미지에 박힌 그라데이션이므로 콘솔 배경색(--event-bg-color)과 무관한 '고정색(#d7dade)'을 사용.
+        → 배경색을 바꿔도 비주얼 그라데이션은 변하지 않음(이미지 자체 값).
+     실제 이미지(background:url(...))로 교체하면 그라데이션도 함께 교체됨 → 이중 적용 없음 */
+  background:
+    linear-gradient(to right,  #d7dade, rgba(0,0,0,0) 14%, rgba(0,0,0,0) 86%, #d7dade),
+    linear-gradient(to bottom, rgba(0,0,0,0) 55%, #d7dade),
+    repeating-linear-gradient(135deg, #76797f 0 22px, #6c6f75 22px 44px);
+  display: flex; align-items: center; justify-content: center;
+}
+.ev-visual-img span {
+  font-weight: 800; font-size: 26px; letter-spacing: 2px;
+  color: rgba(255,255,255,0.45);
+}
+
+/* ════════════════════════════════════════════
+   미션 영역 컨테이너
+════════════════════════════════════════════ */
+.ev-mission-wrap {
+  position: relative;
+  margin: 0 auto;               /* 키비주얼 아래에 위치 + 좌우 자동 → 1024px 초과 시 중앙 정렬 */
+  max-width: 1024px;            /* 미션 영역(툴바+리스트) 최대 폭 상한 — 넓은 프레임에서 무한정 늘어남 방지 */
+  padding: 12px 16px 28px;
+}
+
+/* 툴바: 초기화 기간 + 일괄 수령 */
+.ev-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+  max-width: 500px;             /* 1열: 미션 카드와 동일 상한 → 좌우 끝 정렬 */
+  margin: 0 auto 14px;          /* 카드와 동일하게 가운데 정렬 (기존 하단 여백 14px 유지) */
+}
+/* 2열 모드(가로·태블릿)에서는 카드가 칸을 꽉 채우므로 툴바도 풀폭 */
+.device-frame.mode-landscape .ev-toolbar,
+.device-frame[data-device="tablet"] .ev-toolbar {
+  max-width: none;
+}
+/* 왼쪽/오른쪽 모드: 1열 사이드 컬럼 → 툴바 가로 길이 미션 바와 동일 */
+.device-frame[data-uipos="left"]  .ev-toolbar,
+.device-frame[data-uipos="right"] .ev-toolbar { max-width: 500px; }
+.ev-reset-info {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(0,0,0,0.7); color: #fff;
+  border-radius: 9999px; padding: 7px 14px;
+  font-weight: 500; font-size: 12px; white-space: nowrap;
+}
+.ev-reset-info .ico {
+  width: 15px; height: 15px; border-radius: 50%;
+  background: rgba(255,255,255,0.85); color: #000;
+  font-size: 10px; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.ev-bulk-btn {
+  height: 38px; padding: 0 18px;
+  background: #1a1a1a; color: #fff; border: none; border-radius: 8px;
+  font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.ev-bulk-btn:hover { background: #000; }
+
+/* 미션 리스트 (grid — 모드별 열 수) */
+.ev-mission-list {
+  display: grid;
+  grid-template-columns: 1fr;   /* 기본(세로모드) 1열 */
+  gap: 12px;
+}
+
+/* ── 미션 항목 = 가로 바형 ── */
+.ev-mission-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 84px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  overflow: hidden;
+  width: 100%;
+  max-width: 500px;             /* 카드 하나 최대 폭 상한 — 넓은 1열에서 과도하게 길어짐 방지 */
+  margin: 0 auto;               /* 그리드 칸보다 좁아지면 칸 안에서 가운데 정렬 */
+  /* ① 미션 배경(항목별) — 무채색, 기본 흰색 카드 */
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+.ev-mission-bar[data-bg="gray"]  { background: #ededed; }
+.ev-mission-bar[data-bg="dark"]  { background: #c9cccf; }
+
+.ev-mb-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.ev-mb-title {
+  font-weight: 700; font-size: 15px; line-height: 20px; color: #1a1a1a;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; word-break: break-all;
+}
+.ev-mb-progress {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 700; font-size: 13px; color: #555;
+}
+.ev-mb-progress .frac b { color: #1a1a1a; }
+.ev-mb-progress .info {
+  width: 15px; height: 15px; border-radius: 50%;
+  background: #c4c4c4; color: #fff; font-size: 10px; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* ④ 보상 */
+.ev-mb-reward { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.ev-mb-reward-thumb {
+  position: relative;
+  width: 50px; height: 50px;
+  background: #dcdcdc; border-radius: 8px;
+}
+.ev-mb-reward-qty {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0.85) 45%);
+  color: #fff; font-size: 9px; font-weight: 700;
+  padding: 2px 4px 2px 0;
+  display: flex; align-items: center; justify-content: flex-end;
+  white-space: nowrap; min-height: 16px;
+  border-radius: 0 0 8px 8px;
+}
+/* 리워드 표기법 — 리워드명/수량 텍스트 (기본 숨김) */
+.ev-mb-reward-name, .ev-mb-reward-txt {
+  display: none;
+  font-size: 9px; font-weight: 500; color: #333;
+  text-align: center; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+  max-width: 54px; line-height: 1.3;
+}
+/* imgcount: 배지 + 리워드명 */
+.device-frame.reward-imgcount .ev-mb-reward-name { display: block; }
+/* imgtxt: 배지 숨김 + 리워드명 + 수량 텍스트 */
+.device-frame.reward-imgtxt .ev-mb-reward-qty { display: none; }
+.device-frame.reward-imgtxt .ev-mb-reward-name,
+.device-frame.reward-imgtxt .ev-mb-reward-txt { display: block; }
+/* 카드형: 리워드명/수량 텍스트 비율 확대 */
+.device-frame.layout-card .ev-mb-reward-name,
+.device-frame.layout-card .ev-mb-reward-txt { font-size: 11px; max-width: 100%; }
+
+/* 리워드 표기법 선택 UI 썸네일 */
+.rd-options { display: flex; gap: 8px; }
+.rd-option { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; }
+.rd-thumb { width: 100%; min-height: 72px; background: #eef0f3; border: 1px solid #e2e5eb; border-radius: 6px; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+.rd-img { width: 40px; height: 40px; background: #cfd3d8; border-radius: 4px; position: relative; flex-shrink: 0; }
+.rd-badge { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0.85) 45%); color: #fff; font-size: 7px; font-weight: 700; padding: 2px 3px; display: flex; align-items: center; justify-content: flex-end; border-radius: 0 0 4px 4px; min-height: 14px; }
+.rd-name { font-size: 7px; color: #555; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 48px; }
+.rd-qty { font-size: 7px; color: #555; }
+
+/* ⑤ 수령 버튼 (상태별) */
+.ev-mb-claim {
+  flex-shrink: 0;
+  width: 86px; aspect-ratio: 86 / 56;   /* 버튼 비율 고정(약 1.54:1) — 모든 사이즈에서 동일, 높이는 너비에서 자동 */
+  border: none; border-radius: 8px;
+  font-weight: 700; font-size: 13px; cursor: pointer;
+  white-space: nowrap;
+}
+.ev-mb-claim[data-state="locked"]    { background: #e6e6e6; color: #9a9a9a; cursor: default; }
+.ev-mb-claim[data-state="claimable"] { background: #1a1a1a; color: #fff; }
+.ev-mb-claim[data-state="claimable"]:hover { background: #000; }
+.ev-mb-claim[data-state="claimed"]   { background: #b3b3b3; color: #fff; cursor: default; }
+
+/* ════════════════════════════════════════════
+   모드 분기
+════════════════════════════════════════════ */
+/* 세로형: LNB는 햄버거 드로어(오버레이). 가로형: 아래 규칙으로 펼침 고정 */
+.device-frame.lnb-open .ev-lnb { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.4); }
+.device-frame.lnb-open .ev-dim { opacity: 0; pointer-events: auto; }
+
+/* ── 가로형: LNB 펼침 고정 (정책: 가로형 LNB 펼침 유지 / 세로형만 접힘+햄버거) ── */
+.device-frame.mode-landscape .ev-lnb { transform: translateX(0); box-shadow: none; }
+/* 가로형은 상시 노출이므로 햄버거·닫기 버튼 숨김 */
+.device-frame.mode-landscape .ev-hamburger,
+.device-frame.mode-landscape .ev-lnb-close { display: none; }
+/* 가로형에서 LNB는 좌측 영역을 '차지'(오버레이 아님) → 배경·본문·헤더 모두 LNB(16%) 옆으로 밀어냄 */
+.device-frame.mode-landscape .ev-bg-fixed { left: 16%; }
+.device-frame.mode-landscape .ev-body { margin-left: 16%; }
+.device-frame.mode-landscape .ev-header { left: 16%; }
+/* 가로형은 좌상단 햄버거가 없으므로 기간 박스의 햄버거 회피 여백(46px) 제거 → 좌측(LNB 옆)에 붙임 */
+.device-frame.mode-landscape .ev-period { margin-left: 0; }
+
+/* ── 기능 버튼: 가로형(넓은 프레임) → 우측 상단에서 가로로 펼침, ⋯ 숨김 (정책 부합) ──
+   세로형 / 좁은 프레임(frame-narrow, <720px)은 기존 ⋯ 오버플로우 축약 유지 */
+.device-frame.mode-landscape:not(.frame-narrow) .ev-more-btn { display: none; }
+.device-frame.mode-landscape:not(.frame-narrow) .ev-header-actions {
+  display: flex; flex-direction: row; gap: 8px;
+  position: static; background: none; padding: 0;
+}
+
+/* 열 수 / 비주얼 높이 — 모드별 */
+.device-frame.mode-landscape .ev-mission-list { grid-template-columns: 1fr 1fr; }
+.device-frame.mode-landscape .ev-visual { height: auto; aspect-ratio: 16 / 4; }
+.device-frame.mode-portrait .ev-visual { height: 240px; }
+/* PC는 가로 비율(1920×420 = 32:7)에 맞춰 비례 축소 */
+.device-frame[data-device="pc"].mode-landscape .ev-visual { height: auto; aspect-ratio: 32 / 7; }
+
+/* 모바일(세로모드): 보상/버튼/여백을 줄여 미션명(title) 폭을 넓힘 → 피그마처럼 title 더 많이 노출 */
+.device-frame.mode-portrait .ev-mission-bar { gap: 10px; padding: 12px; }
+.device-frame.mode-portrait .ev-mb-reward-thumb { width: 44px; height: 44px; }
+.device-frame.mode-portrait .ev-mb-claim { width: 68px; font-size: 12px; }  /* 높이는 aspect-ratio에서 자동 */
+.device-frame.mode-portrait .ev-mb-title { font-size: 14px; line-height: 19px; }
+
+/* ── 좁은 가로 프레임(모바일 가로 등): 2열 바가 답답하지 않도록 컴팩트 ── */
+.device-frame[data-device="mobile-landscape"] .ev-visual { height: auto; aspect-ratio: 16 / 3; }
+.device-frame[data-device="mobile-landscape"].layout-card .ev-mission-list {
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  justify-content: center;
+  max-width: 740px;
+  margin: 0 auto;
+}
+.device-frame.layout-card .ev-toolbar { max-width: none; }
+.device-frame[data-device="mobile-landscape"].layout-card .ev-toolbar {
+  max-width: 740px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.device-frame.mode-landscape.frame-narrow .ev-visual { height: 200px; }
+.device-frame.mode-landscape.frame-narrow .ev-mission-bar { gap: 8px; padding: 10px; min-height: 74px; }
+.device-frame.mode-landscape.frame-narrow .ev-mb-title { font-size: 13px; line-height: 18px; }
+.device-frame.mode-landscape.frame-narrow .ev-mb-reward-thumb { width: 42px; height: 42px; }
+.device-frame.mode-landscape.frame-narrow .ev-mb-reward-qty { font-size: 8px; }
+.device-frame.mode-landscape.frame-narrow .ev-mb-claim { width: 66px; font-size: 12px; }  /* 높이는 aspect-ratio에서 자동 */
+.device-frame.mode-landscape.frame-narrow .ev-action-btn { padding: 0 9px; font-size: 11px; }
+
+/* ── LNB 절대 사이즈 매칭 ──
+   가로모드(PC·Mobile가로)는 폭 16% → PC 204px / Mobile가로 130px.
+   세로모드 드로어는 그 '절대 px'에 맞춤: Mobile세로=Mobile가로(130) / Tablet=PC(204) */
+.device-frame[data-device="mobile-portrait"] .ev-lnb { width: 130px; }
+.device-frame[data-device="tablet"] .ev-lnb { width: 204px; }
+
+/* ── 디바이스별 미션명 폰트 & 열 수 ── */
+.device-frame[data-device="mobile-landscape"] .ev-mb-title { font-size: 14px; line-height: 19px; }
+.device-frame[data-device="tablet"] .ev-mb-title { font-size: 15px; line-height: 20px; }
+.device-frame[data-device="tablet"] .ev-mission-list { grid-template-columns: 1fr 1fr; }  /* 태블릿(세로)도 2열 */
+
+/* ════════════════════════════════════════════
+   카드형 레이아웃 (layout-card 클래스)
+════════════════════════════════════════════ */
+.device-frame.layout-card .ev-mission-list {
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+.device-frame[data-device="pc"].layout-card .ev-mission-list,
+.device-frame[data-device="custom"].mode-landscape.layout-card .ev-mission-list {
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 14px;
+}
+.device-frame[data-device="pc"].layout-card .ev-toolbar,
+.device-frame[data-device="custom"].mode-landscape.layout-card .ev-toolbar {
+  margin-left: 0;
+  margin-right: 0;
+}
+/* 카드형 + uipos left/right: 툴바도 미션 리스트와 동일하게 전폭 */
+.device-frame.layout-card[data-uipos="left"] .ev-toolbar,
+.device-frame.layout-card[data-uipos="right"] .ev-toolbar {
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+.device-frame.layout-card .ev-mission-bar {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: none;
+  min-height: auto;
+  padding: 14px 10px;
+  gap: 10px;
+}
+.device-frame.layout-card .ev-mb-main { align-items: center; }
+.device-frame.layout-card .ev-mb-title {
+  font-size: 14px; line-height: 19px;
+  -webkit-line-clamp: 2;
+}
+.device-frame[data-device="pc"].layout-card .ev-mb-title,
+.device-frame[data-device="custom"].mode-landscape.layout-card .ev-mb-title { font-size: 15px; line-height: 20px; }
+.device-frame.layout-card .ev-mb-progress { justify-content: center; }
+.device-frame.layout-card .ev-mb-reward { width: 100%; }
+.device-frame.layout-card .ev-mb-reward-thumb {
+  width: 54%; max-width: 136px; height: auto; aspect-ratio: 1 / 1;
+  border-radius: 4px;
+}
+.device-frame.layout-card .ev-mb-reward-qty {
+  border-radius: 0 0 4px 4px;
+}
+.device-frame.layout-card .ev-mb-claim {
+  width: 100%; aspect-ratio: auto;
+  height: 34px; font-size: 13px;
+  border-radius: 4px;
+}
+/* 카드형 가로 스크롤 */
+.device-frame.layout-card.scroll-h .ev-mission-list {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  grid-template-columns: unset;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,0,0,0.25) transparent;
+  cursor: grab;
+  padding-bottom: 6px;
+}
+.device-frame.layout-card.scroll-h .ev-mission-list:active { cursor: grabbing; }
+.device-frame.layout-card.scroll-h .ev-mission-list::-webkit-scrollbar { height: 4px; }
+.device-frame.layout-card.scroll-h .ev-mission-list::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.25); border-radius: 2px;
+}
+.device-frame.layout-card.scroll-h .ev-mission-bar {
+  flex: 0 0 clamp(130px, 20%, 160px);
+  width: clamp(130px, 20%, 160px);
+}
+
+/* 카드형 + uipos left/right: 사이드 컬럼에서도 auto-fill 유지 */
+.device-frame.layout-card[data-uipos="left"]  .ev-mission-list,
+.device-frame.layout-card[data-uipos="right"] .ev-mission-list {
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  max-width: none;
+}
+
+/* ════════════════════════════════════════════
+   미션 UI 위치 — 왼쪽/오른쪽 (반응형B 구성: 고정 배경 + 사이드 콘텐츠 컬럼)
+   '아래'(기본/무속성)는 위 기존 레이아웃 그대로 → 회귀 없음
+════════════════════════════════════════════ */
+/* 고정 배경 레이어 — 모든 uipos에서 노출. bottom은 ev-body(z-index:2)가 위에 덮임 */
+.ev-bg-fixed {
+  position: absolute; inset: 0; z-index: 1;
+  background: var(--event-bg-color);
+  overflow: hidden; display: none;
+  justify-content: center; align-items: flex-start;
+}
+.ev-bg-image {
+  position: relative;
+  width: 100%; min-width: 640px; max-width: 1920px;
+  aspect-ratio: 1920 / 1080; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background:
+    linear-gradient(to right,  #d7dade, rgba(0,0,0,0) 14%, rgba(0,0,0,0) 86%, #d7dade),
+    linear-gradient(to bottom, rgba(0,0,0,0) 55%, #d7dade),
+    repeating-linear-gradient(135deg, #76797f 0 22px, #6c6f75 22px 44px);
+  background-size: cover; background-position: center;
+}
+.ev-bg-image span { font-weight: 800; font-size: 24px; letter-spacing: 2px; color: rgba(255,255,255,0.45); }
+
+/* 고정 배경: 모든 UI 위치에서 표시 */
+.device-frame[data-uipos="left"] .ev-bg-fixed,
+.device-frame[data-uipos="right"] .ev-bg-fixed,
+.device-frame[data-uipos="bottom"] .ev-bg-fixed { display: flex; }
+
+/* 아래 모드: ev-body를 z-index:2로 올려 ev-bg-fixed 위에 표시 */
+.device-frame[data-uipos="bottom"] .ev-body { z-index: 2; }
+/* 아래 모드: ev-visual-img 배경 제거 — 배경 이미지는 ev-bg-fixed 하나, 위치 표기만 */
+.device-frame[data-uipos="bottom"] .ev-visual-img {
+  background: rgba(255,255,255,0.04);
+  border: 1.5px dashed rgba(255,255,255,0.3);
+}
+
+/* left/right: 인라인 키비주얼 배너 숨김 → 반대편 ev-kv-box가 노출 */
+.device-frame[data-uipos="left"] .ev-visual,
+.device-frame[data-uipos="right"] .ev-visual { display: none; }
+.device-frame[data-uipos="left"] .ev-hero,
+.device-frame[data-uipos="right"] .ev-hero { display: none; }
+
+/* left/right: ev-body → 사이드 콘텐츠 컬럼 */
+.device-frame[data-uipos="left"] .ev-body,
+.device-frame[data-uipos="right"] .ev-body {
+  z-index: 2;
+  top: 72px; bottom: 16px;
+  width: 46%; min-width: 320px;
+  background: transparent;
+  display: flex; flex-direction: column;
+}
+.device-frame[data-uipos="left"]  .ev-body { left: 0;  right: auto; }
+.device-frame[data-uipos="right"] .ev-body { left: auto; right: 0; }
+
+/* 콘텐츠 세로 중앙 정렬 (넘치면 상단 정렬+스크롤) */
+.device-frame[data-uipos="left"] .ev-mission-wrap,
+.device-frame[data-uipos="right"] .ev-mission-wrap {
+  margin-top: auto; margin-bottom: auto;
+  margin-left: 0; margin-right: 0;   /* flex column에서 auto margin 수축 방지 → ev-body 전폭 사용 */
+}
+/* 바깥쪽(화면 끝) 패딩 — 프레임 너비에 비례해 90→16px 스케일 */
+.device-frame[data-uipos="left"]  .ev-mission-wrap { padding-left: clamp(16px, 10%, 90px); }
+.device-frame[data-uipos="right"] .ev-mission-wrap { padding-right: clamp(16px, 10%, 90px); }
+/* 모바일 / 세로 비율: 양쪽 모두 16px */
+.device-frame[data-device="mobile"][data-uipos="left"]  .ev-mission-wrap,
+.device-frame[data-device="mobile"][data-uipos="right"] .ev-mission-wrap,
+.device-frame[data-device="mobile-landscape"][data-uipos="left"]  .ev-mission-wrap,
+.device-frame[data-device="mobile-landscape"][data-uipos="right"] .ev-mission-wrap,
+.device-frame.mode-portrait[data-uipos="left"]  .ev-mission-wrap,
+.device-frame.mode-portrait[data-uipos="right"] .ev-mission-wrap {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* 좁은 컬럼 → 미션 리스트 강제 1열, 툴바·바와 같은 500px 상한으로 정렬 */
+.device-frame[data-uipos="left"]  .ev-mission-list,
+.device-frame[data-uipos="right"] .ev-mission-list { grid-template-columns: 1fr; max-width: 500px; margin: 0 auto; }
+
+/* 왼쪽/오른쪽 모드: 미션 바 최대 500px */
+.device-frame[data-uipos="left"]  .ev-mission-bar,
+.device-frame[data-uipos="right"] .ev-mission-bar { max-width: 500px; }
+
+/* ── 키비주얼 위치 박스 (ev-kv-box) — ev-bg-image 내부 절대위치, 이미지 밖 절대 불가 ── */
+.ev-kv-box {
+  position: absolute; display: none;
+}
+.ev-kv-img {
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.04);
+  border: 1.5px dashed rgba(255,255,255,0.3);
+  display: flex; align-items: center; justify-content: center;
+}
+.ev-kv-img span { font-weight: 600; font-size: 13px; letter-spacing: 1px; color: rgba(255,255,255,0.55); }
+
+/* 왼쪽 모드 가로: 이미지 오른쪽 절반 */
+.device-frame[data-uipos="left"] .ev-kv-box {
+  display: block;
+  inset: 0 0 0 50%;
+}
+/* 오른쪽 모드 가로: 이미지 왼쪽 절반 */
+.device-frame[data-uipos="right"] .ev-kv-box {
+  display: block;
+  inset: 0 50% 0 0;
+}
+
+/* ── 세로 모드: 모든 uipos → typeB portrait 레이아웃 통일 ── */
+/* left/right: 사이드 컬럼 해제 → 풀폭 */
+.device-frame.mode-portrait[data-uipos="left"] .ev-body,
+.device-frame.mode-portrait[data-uipos="right"] .ev-body {
+  left: 0; right: 0; width: auto; bottom: 16px;
+}
+.device-frame.mode-portrait[data-uipos="left"] .ev-mission-wrap,
+.device-frame.mode-portrait[data-uipos="right"] .ev-mission-wrap { margin-top: 0; margin-bottom: 0; }
+
+/* bottom 세로: ev-hero 숨기고 ev-body 풀폭 (top은 JS 계산) */
+.device-frame.mode-portrait[data-uipos="bottom"] .ev-hero { display: none; }
+.device-frame.mode-portrait[data-uipos="bottom"] .ev-body {
+  left: 0; right: 0; width: auto; bottom: 16px;
+}
+.device-frame.mode-portrait[data-uipos="bottom"] .ev-mission-wrap { margin-top: 0; margin-bottom: 0; }
+
+/* 세로 모드 kv-box: 모든 uipos에서 이미지 전체 영역 */
+.device-frame.mode-portrait[data-uipos="left"] .ev-kv-box,
+.device-frame.mode-portrait[data-uipos="right"] .ev-kv-box,
+.device-frame.mode-portrait[data-uipos="bottom"] .ev-kv-box {
+  display: block;
+  inset: 0;
+}
+
+/* ── 세로 모드: 전체 페이지 스크롤 (content area 독립 스크롤 해제) ── */
+.device-frame.mode-portrait {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.device-frame.mode-portrait::-webkit-scrollbar { display: none; }
+
+/* ev-bg-fixed: absolute → relative (flow에 합류, 자연 높이) */
+.device-frame.mode-portrait .ev-bg-fixed {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  z-index: auto;
+}
+
+/* ev-body: absolute → relative (ev-bg-fixed 아래 자연 배치, 독립 스크롤 해제) */
+.device-frame.mode-portrait .ev-body {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  overflow: visible;
+  height: auto;
+  margin-top: 12px;
+}
+
+/* ════════════════════════════════════════════
+   ADMIN PANEL — Setup_ScreenDetail_Panel (베이스 계승)
+════════════════════════════════════════════ */
+.Setup_ScreenDetail_Panel {
+  width: 463px; min-width: 463px; height: 100vh;
+  overflow-y: auto; background: #fff;
+  border-left: 1px solid #e2e8f0;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 25px;
+}
+.Setup_ScreenDetail_Header { padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; width: 100%; flex-shrink: 0; }
+.Setup_ScreenDetail_Header h2 {
+  font-family: 'Inter','Noto Sans KR',-apple-system,sans-serif;
+  font-weight: 500; font-size: 18px; line-height: 28px; color: #0f172b;
+}
+.Setup_ScreenDetail_Header .sub { font-size: 12px; color: #64748b; margin-top: 4px; font-weight: 500; }
+
+/* 아코디언 (공통 패턴) */
+.acc { width: 413px; border-radius: 4px; flex-shrink: 0; }
+.acc-header {
+  width: 100%; height: 54px; background: #fff;
+  border: 1px solid #ebeef1; border-radius: 4px;
+  cursor: pointer; position: relative;
+  display: flex; align-items: center; padding: 0 36px 0 12px;
+}
+.acc-header.is-open { border-radius: 4px 4px 0 0; border-bottom-color: transparent; }
+.acc-header .label { font-weight: 600; font-size: 12px; line-height: 22px; color: #222; white-space: nowrap; }
+.acc-header .arrow {
+  position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+  width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; pointer-events: none;
+}
+.acc-header .arrow svg { transition: transform .2s ease; transform: rotate(-90deg); }
+.acc-header.is-open .arrow svg { transform: rotate(0deg); }
+.acc-body {
+  background: #fbfbfd; border: 1px solid #ebeef1; border-top: none;
+  border-radius: 0 0 4px 4px; padding: 18px 14px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.acc-body.is-hidden { display: none; }
+
+.common-note {
+  font-size: 12px; line-height: 19px; color: #5f646f;
+  background: #f1f3f5; border-radius: 6px; padding: 12px 14px;
+}
+.common-note b { color: #222; }
+
+/* 기본 UI 설정 placeholder (비움) */
+.Template_UISetting_Placeholder {
+  border: 1.5px dashed #c5c8ce; border-radius: 6px;
+  padding: 24px 16px; text-align: center;
+}
+.Template_UISetting_Placeholder p:first-child { font-weight: 700; font-size: 13px; color: #5f646f; margin-bottom: 6px; }
+.Template_UISetting_Placeholder p { font-size: 12px; line-height: 18px; color: #9aa0a6; }
+
+/* ════════════════════════════════════════════
+   공통 설정 컨트롤 (패널 본문) — 무채색
+════════════════════════════════════════════ */
+.opt-section { display: flex; flex-direction: column; gap: 9px; }
+.opt-row-inline { display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px 16px; }
+.opt-section-title { font-weight: 600; font-size: 12px; color: #222; }
+.opt-row { display: flex; align-items: center; gap: 9px; cursor: pointer; }
+.opt-radio, .opt-check {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; border: 2px solid #c5c8ce; background: #fff;
+  flex-shrink: 0; cursor: pointer; margin: 0;
+}
+.opt-radio { border-radius: 50%; }
+.opt-check { border-radius: 4px; }
+.opt-radio:checked { border-color: #1a1a1a; background: #1a1a1a; box-shadow: inset 0 0 0 3px #fff; }
+.opt-check:checked { border-color: #1a1a1a; background: #1a1a1a; }
+.opt-label { font-size: 12px; color: #444; }
+.opt-label-box { border: 1px dashed #c5c8ce; background: #fbfbfd; border-radius: 4px; padding: 5px 8px; font-size: 11px; color: #555; white-space: nowrap; }
+.opt-divider { height: 1px; background: #e2e8f0; }
+.opt-row.hidden-row { display: none; }
+
+.panel-color-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.panel-color-label { font-size: 12px; font-weight: 600; color: #222; }
+/* ══ Gradient Color Picker ══ */
+.grd-picker { position: relative; display: inline-block; }
+.grd-trigger {
+  display: flex; align-items: center; gap: 6px;
+  background: #f2f4f8; padding: 2px 8px 2px 4px;
+  height: 34px; border-radius: 4px; cursor: pointer;
+  border: 1px solid transparent; user-select: none;
+}
+.grd-trigger:hover { border-color: #c5c9d4; }
+.grd-swatch {
+  width: 48px; height: 26px; border-radius: 3px;
+  border: 1px solid rgba(0,0,0,.12); flex-shrink: 0;
+}
+.grd-hex { font-size: 12px; color: #222; white-space: nowrap; min-width: 52px; }
+.grd-caret { flex-shrink: 0; opacity: .5; }
+.grd-panel {
+  position: fixed; z-index: 9999;
+  background: #fff; border: 1px solid #dde1e8; border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.15); width: 256px; padding: 12px;
+  display: none;
+}
+.grd-panel.open { display: block; }
+.grd-types { display: flex; gap: 3px; margin-bottom: 10px; }
+.grd-type-btn {
+  flex: 1; height: 26px; font-size: 10px; font-weight: 600;
+  border: 1px solid #dde1e8; border-radius: 4px;
+  background: #f5f6f8; color: #666; cursor: pointer; padding: 0;
+}
+.grd-type-btn.is-active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+.grd-type-btn:not(.is-active):hover { background: #eaecf0; }
+.grd-preview {
+  height: 22px; border-radius: 4px; border: 1px solid rgba(0,0,0,.1);
+  margin-bottom: 10px; background: #000;
+}
+.grd-stops { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
+.grd-stop { display: flex; align-items: center; gap: 5px; }
+.grd-stop input[type="color"] {
+  width: 26px; height: 26px; padding: 1px; background: none;
+  cursor: pointer; border-radius: 3px; border: 1px solid rgba(0,0,0,.1); flex-shrink: 0;
+}
+.grd-stop input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.grd-stop input[type="color"]::-webkit-color-swatch { border: none; border-radius: 2px; }
+.grd-stop-pos { flex: 1; accent-color: #1a1a1a; cursor: pointer; }
+.grd-stop-opa { width: 38px; height: 24px; border: 1px solid #dde1e8; border-radius: 4px; font-size: 11px; text-align: center; padding: 0; outline: none; flex-shrink: 0; }
+.grd-stop-opa-pct { font-size: 11px; color: #888; flex-shrink: 0; }
+.grd-stop-del {
+  width: 18px; height: 18px; border: none; background: none;
+  color: #bbb; cursor: pointer; font-size: 16px; padding: 0; line-height: 1;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.grd-stop-del:hover { color: #e44; }
+.grd-add-stop {
+  width: 100%; height: 28px; border: 1px dashed #c0c4cc; border-radius: 4px;
+  background: none; font-size: 11px; color: #666; cursor: pointer; margin-bottom: 8px;
+}
+.grd-add-stop:hover { background: #f5f6f8; }
+.grd-angle-row { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.grd-angle-row label { font-size: 11px; color: #888; flex-shrink: 0; }
+.grd-angle-row input[type="range"] { flex: 1; accent-color: #1a1a1a; cursor: pointer; }
+.grd-angle-val { font-size: 11px; color: #444; width: 30px; text-align: right; flex-shrink: 0; }
+
+.panel-detail-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid #e2e5eb; border-radius: 40px; padding: 8px 14px;
+  background: #fff; cursor: pointer; font-size: 12px; color: #5f646f; white-space: nowrap;
+}
+.panel-detail-btn:hover { background: #f5f7fa; }
+.panel-btn-line { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.rt-options { display: flex; gap: 10px; }
+.rt-option { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.rt-thumb { width: 100%; aspect-ratio: 1/1; background: #eef0f3; border: 1px solid #e2e5eb; border-radius: 6px; display: flex; align-items: center; justify-content: center; position: relative; }
+.rt-thumb .chip { width: 40px; height: 40px; border-radius: 50%; background: #cfd3d8; }
+.rt-thumb .badge { position: absolute; bottom: 6px; background: #1a1a1a; color: #fff; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 9999px; }
+.rt-thumb .rname { position: absolute; bottom: 6px; font-size: 9px; color: #555; }
+
+.funcbtn-list { display: flex; flex-direction: column; gap: 8px; }
+.funcbtn-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid #ebeef1; border-radius: 6px; padding: 8px 10px; background: #fff; }
+.funcbtn-item.is-hidden { display: none; }
+.funcbtn-item-left { display: flex; align-items: center; gap: 8px; }
+.funcbtn-grip { display: flex; flex-direction: column; gap: 2px; cursor: grab; }
+.funcbtn-grip span { width: 12px; height: 2px; background: #c5c8ce; border-radius: 2px; }
+.funcbtn-item-label { font-size: 12px; font-weight: 600; color: #333; }
+
+/* ════ 세부설정 팝업 (관리 패널 측, fixed 모달) ════ */
+.cfg-popup-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 400;
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+.cfg-popup-overlay.visible { display: flex; }
+.cfg-popup {
+  background: #fff; border: 1px solid #ebeef1; border-radius: 6px;
+  width: 560px; max-width: 100%; max-height: 90vh; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+.cfg-popup-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 18px 10px; }
+.cfg-popup-title { font-weight: 700; font-size: 17px; color: #222; }
+.cfg-popup-close { width: 24px; height: 24px; background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.cfg-popup-close:hover { opacity: 0.5; }
+.cfg-popup-divider { height: 1px; background: #ebeef1; }
+.cfg-popup-body { padding: 18px; display: flex; flex-direction: column; gap: 18px; }
+.cfg-section-title { display: flex; align-items: baseline; gap: 6px; }
+.cfg-section-title .t { font-weight: 600; font-size: 14px; color: #222; }
+.cfg-section-title .s { font-weight: 400; font-size: 11px; color: #888; }
+.cfg-popup-footer { display: flex; gap: 10px; justify-content: flex-end; padding: 12px 18px 18px; }
+.cfg-btn-cancel { background: #e6e6e6; color: #333; border: none; border-radius: 4px; height: 42px; padding: 0 18px; cursor: pointer; font-weight: 600; font-size: 14px; }
+.cfg-btn-cancel:hover { background: #dadada; }
+.cfg-btn-save { background: #1a1a1a; color: #fff; border: none; border-radius: 4px; height: 42px; padding: 0 18px; cursor: pointer; font-weight: 600; font-size: 14px; }
+.cfg-btn-save:hover { background: #000; }
+
+.upload-grid { display: flex; gap: 24px; flex-wrap: wrap; }
+.upload-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.upload-box {
+  position: relative; width: 180px; height: 100px;
+  background: #fbfbfd; border: 1px solid #ebeef1; border-radius: 4px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  cursor: pointer; overflow: hidden; background-size: cover; background-position: center;
+}
+.upload-box:hover { background-color: #f2f4f8; }
+.upload-box .plus { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+.upload-box .hint { font-size: 10px; color: #c5c8ce; }
+.upload-box.has-image .plus, .upload-box.has-image .hint { display: none; }
+.upload-remove { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; background: rgba(0,0,0,0.55); border: none; border-radius: 50%; color: #fff; font-size: 12px; cursor: pointer; display: none; align-items: center; justify-content: center; }
+.upload-box.has-image .upload-remove { display: flex; }
+.upload-lang { font-size: 11px; color: #222; }
+
+.add-check-row { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid #f0f1f3; cursor: pointer; }
+.add-check-row:last-child { border-bottom: none; }
+.add-check-row .lbl { font-size: 13px; color: #333; }
+
+/* 세부팝업 미리보기 박스 / 기본 버튼 */
+.cfg-preview-box { border: 1px dashed #d0d3d8; border-radius: 6px; background: #f7f8fa; min-height: 88px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #888; font-size: 13px; padding: 14px; }
+.cfg-default-btn { background: #1a1a1a; color: #fff; border: none; border-radius: 6px; padding: 9px 28px; font-weight: 700; font-size: 13px; cursor: default; }
+
+/* 기능버튼 세부 팝업 — 2단 구성 */
+.cfg-popup.wide { width: 760px; }
+.cfg-twocol { display: flex; gap: 20px; }
+.cfg-twocol .cfg-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+.cfg-sect { display: flex; flex-direction: column; gap: 10px; }
+.cfg-sub { font-weight: 600; font-size: 13px; color: #222; }
+.cfg-btn-preview { position: relative; height: 124px; border: 1px dashed #d0d3d8; border-radius: 6px; background: #f7f8fa; }
+.cfg-btn-preview .lang { position: absolute; left: 12px; font-size: 11px; color: #888; }
+.cfg-btn-preview .cfg-default-btn { position: absolute; left: 44px; }
+.cfg-textarea-row { display: flex; gap: 8px; align-items: flex-start; }
+.cfg-textarea-row .lang { font-size: 11px; color: #222; margin-top: 8px; width: 18px; flex-shrink: 0; }
+.cfg-textarea { flex: 1; height: 96px; border: 1px solid #ebeef1; border-radius: 4px; padding: 8px 10px; font-family: inherit; font-size: 12px; resize: none; outline: none; }
+.cfg-table { border-collapse: collapse; font-size: 11px; width: 100%; }
+.cfg-table th, .cfg-table td { border: 1px solid #e2e5eb; padding: 6px 8px; color: #444; text-align: center; }
+.cfg-table th { background: #f4f5f7; color: #555; font-weight: 600; }
+.cfg-table-input { border: none; background: transparent; padding: 3px 6px; font-size: 11px; font-weight: 600; font-family: inherit; width: 80px; color: #555; text-align: center; cursor: default; pointer-events: none; }  /* 보기용(편집 불가) */
+.lnb-text-input { flex: 1; height: 36px; border: 1px solid #ebeef1; border-radius: 4px; padding: 0 10px; font-size: 12px; font-family: inherit; outline: none; }
+
+/* ════ 웹뷰 내부 팝업 (프레임 기준 absolute) ════ */
+.ev-popup {
+  position: absolute; inset: 0; z-index: 200;
+  display: none; align-items: center; justify-content: center;
+}
+.ev-popup.visible { display: flex; }
+.ev-popup-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.55); }
+.ev-popup-modal {
+  position: relative; z-index: 1;
+  width: 82%; max-width: 680px; max-height: 86%;
+  background: #fff; border-radius: 14px; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.ev-popup-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #eee; }
+.ev-popup-head .ttl { font-weight: 700; font-size: 16px; color: #1a1a1a; }
+.ev-popup-x { width: 26px; height: 26px; background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.ev-popup-content { padding: 20px 18px; overflow-y: auto; }
+.ev-popup-foot { padding: 14px 18px; border-top: 1px solid #eee; display: flex; justify-content: center; }
+.ev-popup-confirm { width: auto; min-width: 160px; height: 46px; padding: 0 30px; background: #1a1a1a; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; background-size: cover; background-position: center; }
+.ev-popup-confirm:hover { background: #000; }
+
+/* 보상 결과 팝업 — event_template_base_proto.html 스타일(흰 모달/중앙 타이틀/하단 확인) */
+.rwd-popup .ev-popup-overlay { background: rgba(0,0,0,0.7); }
+.rwd-modal {
+  position: relative; z-index: 1;
+  width: 82%; max-width: 700px; height: 78%; max-height: 620px;
+  background: #fff; border-radius: 8px; box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.rwd-modal-head { display: flex; align-items: center; padding: 16px 18px; flex-shrink: 0; }
+.rwd-modal-title { flex: 1; text-align: center; font-weight: 700; font-size: 18px; color: #000; padding-left: 28px; }
+.rwd-modal-close { width: 28px; height: 28px; background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.rwd-modal-close:hover { opacity: .5; }
+.rwd-modal-body { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; padding: 0 18px; }
+.rwd-variant { display: none; flex-direction: column; align-items: center; gap: 10px; }
+.rwd-variant.active { display: flex; }
+.rwd-imgbox { width: 120px; height: 120px; background: #e0e0e0; position: relative; flex-shrink: 0; background-size: cover; background-position: center; }
+.rwd-info { display: flex; flex-direction: column; align-items: center; width: 240px; text-align: center; }
+.rwd-name { font-weight: 500; font-size: 18px; line-height: 24px; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+.rwd-count { font-weight: 500; font-size: 18px; line-height: 24px; color: #000; }
+.Common_Count { position: absolute; bottom: 0; right: 0; background: linear-gradient(to right, rgba(0,0,0,0), #1a1a1a 50%); display: flex; align-items: center; justify-content: flex-end; gap: 4px; max-height: 26px; padding: 1px 6px 1px 14px; pointer-events: none; }
+.Common_Count .cc-ico { width: 13px; height: 13px; display: flex; align-items: center; justify-content: center; }
+.Common_Count .cc-txt { font-weight: 700; font-size: 15px; color: #fff; white-space: nowrap; }
+.rwd-modal-foot { padding: 14px 18px 18px; display: flex; justify-content: center; flex-shrink: 0; }
+.rwd-modal-btn { background: #1a1a1a; color: #fff; border: none; border-radius: 6px; width: 180px; height: 50px; font-weight: 700; font-size: 16px; cursor: pointer; }
+.rwd-modal-btn:hover { background: #000; }
+
+.ev-popup-ph { min-height: 160px; border: 1.5px dashed #cfcfcf; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 13px; text-align: center; background: #fafafa; }
+.ev-popup-notice { display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 21px; color: #444; }
+.ev-popup-notice p { margin: 0; }
+.ev-popup-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.ev-popup-table th, .ev-popup-table td { border-bottom: 1px solid #eee; padding: 8px 6px; text-align: left; color: #444; }
+.ev-popup-table th { color: #888; font-weight: 600; }
+
+/* ════ 기본 UI 세부설정 팝업 — 콘텐츠 내부 스타일 ════ */
+.cfg-popup.ui-detail { width: 900px; max-width: 96vw; }
+
+/* 탭 */
+.uid-tab { display: flex; flex-shrink: 0; border-bottom: 1px solid #ebeef1; }
+.uid-tab-item {
+  flex: 1; display: flex; flex-direction: column;
+  cursor: pointer; border: none; background: none; padding: 0;
+}
+.uid-tab-inner {
+  padding: 11px 16px; text-align: center;
+  font-family: 'Pretendard', sans-serif; font-weight: 600; font-size: 14px; line-height: 20px;
+}
+.uid-tab-item.active .uid-tab-inner { color: #1a1a1a; }
+.uid-tab-item:not(.active) .uid-tab-inner { color: #c5c8ce; }
+.uid-tab-bar { height: 2px; flex-shrink: 0; }
+.uid-tab-item.active .uid-tab-bar { background: #1a1a1a; }
+.uid-tab-item:not(.active) .uid-tab-bar { background: transparent; }
+.uid-tab-panel { display: flex; flex-direction: column; }
+.uid-tab-panel.hidden { display: none; }
+
+/* 버튼 유형 영역 */
+.uid-btn-type-wrap {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px; flex-shrink: 0; min-height: 50px;
+  border-bottom: 1px solid #ebeef1;
+}
+.uid-btn-type-group { display: flex; gap: 5px; }
+.uid-btn-type-btn {
+  height: 36px; padding: 0 14px;
+  border: none; border-radius: 4px; cursor: pointer;
+  font-family: 'Pretendard', sans-serif; font-weight: 600;
+  font-size: 13px; color: #fff; white-space: nowrap;
+}
+.uid-btn-type-btn[data-active="true"]  { background: #1a1a1a; }
+.uid-btn-type-btn[data-active="false"] { background: #9397a1; }
+.uid-btn-type-btn:hover { filter: brightness(0.88); }
+
+/* 툴팁 */
+.uid-tooltip-wrap { position: relative; display: flex; align-items: center; }
+.uid-tooltip-icon {
+  width: 17px; height: 17px; border-radius: 50%;
+  background: #5f646f; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; cursor: default; flex-shrink: 0;
+}
+.uid-tooltip-body {
+  position: absolute; left: 22px; top: 50%; transform: translateY(-50%);
+  background: #fff; border: 1px solid #d9d9d9; border-radius: 8px;
+  padding: 8px 12px; white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  font-size: 11px; line-height: 18px; color: #5f646f;
+  display: none; z-index: 10; pointer-events: none;
+}
+.uid-tooltip-wrap:hover .uid-tooltip-body { display: block; }
+
+/* 바디 2열 */
+.uid-body { display: flex; overflow-y: auto; max-height: 60vh; }
+.uid-body-col { flex: 1; padding: 18px; display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.uid-body-col + .uid-body-col { border-left: 1px solid #ebeef1; }
+
+/* 섹션 */
+.uid-section { display: flex; flex-direction: column; gap: 9px; }
+.uid-section-title { font-weight: 600; font-size: 14px; line-height: 20px; color: #222; }
+.uid-section-sub { font-weight: 600; font-size: 12px; line-height: 20px; color: #222; }
+.uid-size-hint { font-size: 11px; color: #888; }
+.uid-caption { font-size: 11px; color: #888; }
+.uid-divider { height: 1px; background: #ebeef1; margin: 4px 0; }
+
+/* 라디오 */
+.uid-radio-group { display: flex; gap: 12px; align-items: center; }
+.uid-radio-option { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.uid-radio {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; border: 2px solid #c5c8ce;
+  border-radius: 50%; cursor: pointer; background: #fff; flex-shrink: 0; margin: 0;
+}
+.uid-radio:checked { border-color: #1a1a1a; background: #1a1a1a; box-shadow: inset 0 0 0 3px #fff; }
+.uid-radio-label { font-size: 12px; color: #444; }
+
+/* 체크박스 */
+.uid-checkbox {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; border: 2px solid #c5c8ce;
+  border-radius: 3px; cursor: pointer; background: #fff; flex-shrink: 0; position: relative; margin: 0;
+}
+.uid-checkbox:checked { background: #1a1a1a; border-color: #1a1a1a; }
+.uid-checkbox:checked::after {
+  content: ''; position: absolute; left: 2px; top: -1px;
+  width: 5px; height: 9px;
+  border-right: 2px solid #fff; border-bottom: 2px solid #fff;
+  transform: rotate(45deg);
+}
+
+/* 업로드 박스 */
+.uid-upload-box {
+  width: 160px; height: 90px;
+  background: #fbfbfd; border: 1px solid #ebeef1;
+  border-radius: 4px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px;
+  cursor: pointer; position: relative; overflow: hidden;
+}
+.uid-upload-box:hover { background: #f2f4f8; }
+.uid-upload-hint { font-size: 10px; color: #c5c8ce; text-align: center; }
+.uid-upload-lang { font-size: 11px; color: #444; margin-top: 8px; text-align: center; }
+.uid-upload-wrap { display: flex; flex-direction: column; align-items: center; }
+.uid-upload-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* 상태별 버튼 업로드 그리드 */
+.uid-claim-grid { background: #fff; border: 1px solid #ebeef1; border-radius: 4px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.uid-claim-grid.hidden { display: none; }
+.uid-claim-header { display: flex; gap: 12px; padding-left: 26px; }
+.uid-claim-header-item { width: 160px; text-align: center; font-size: 11px; color: #222; font-weight: 600; }
+.uid-claim-row { display: flex; align-items: center; gap: 12px; }
+.uid-claim-lang { font-size: 11px; color: #222; width: 18px; flex-shrink: 0; }
+
+/* 버튼명 입력 */
+.uid-btn-name-input {
+  width: 160px; height: 36px;
+  background: #fff; border: 1px solid #ebeef1;
+  border-radius: 4px; padding: 0 8px;
+  font-family: 'Pretendard', sans-serif; font-size: 12px; color: #222; outline: none;
+}
+.uid-btn-name-input::placeholder { color: #c5c8ce; }
+.uid-btn-name-input:focus { border-color: #1a1a1a; }
+.uid-btn-name-row { display: flex; align-items: center; gap: 8px; }
+.uid-btn-name-lang { font-size: 11px; color: #222; width: 18px; flex-shrink: 0; }
+
+/* 이미지+텍스트 단일열 */
+.uid-claim-img-cols { display: flex; gap: 12px; align-items: flex-start; }
+.uid-claim-img-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.uid-claim-img-col-label { font-size: 11px; color: #222; text-align: center; }
+
+/* 텍스트 컬러 피커 */
+.uid-color-picker {
+  display: flex; align-items: center; gap: 6px;
+  background: #f2f4f8; height: 32px; padding: 2px 4px; border-radius: 4px; width: 110px;
+}
+.uid-color-picker-wrap { width: 50px; height: 26px; overflow: hidden; flex-shrink: 0; }
+input[type="color"].uid-color-chip {
+  -webkit-appearance: none; appearance: none;
+  width: 50px; height: 26px; border: none; padding: 0; cursor: pointer; display: block;
+}
+input[type="color"].uid-color-chip::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"].uid-color-chip::-webkit-color-swatch { border: none; }
+.uid-color-hex { font-size: 11px; color: #222; }
+
+/* 미리보기 */
+.uid-preview-section { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.uid-preview-item { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.uid-preview-caption { font-size: 11px; font-weight: 600; color: #222; text-align: center; }
+.uid-preview-label { font-size: 10px; color: #888; text-align: center; margin-top: 2px; }
+.uid-reward-img-box {
+  width: 72px; height: 72px;
+  background: #fbfbfd; border: 1px solid #ebeef1; border-radius: 8px;
+  position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.uid-reward-img-inner {
+  width: 46px; height: 46px; border-radius: 50%; background: #d5d5d5;
+  display: flex; align-items: center; justify-content: center;
+}
+.uid-reward-img-inner span { font-size: 7px; color: #555; text-align: center; line-height: 10px; }
+.uid-dimmed-overlay { position: absolute; inset: 0; background: rgba(34,34,34,0.5); border-radius: 8px; }
+.uid-custom-mark { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.uid-arrow-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; margin-top: 26px; flex-shrink: 0; }
+.uid-lang-upload-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #222; cursor: pointer; }
+
+/* 섹션 바디 숨김 */
+.uid-section-body { display: flex; flex-direction: column; gap: 8px; }
+.uid-section-body.hidden { display: none; }
+
+</style>
+</head>
+<body>
+
+<div class="event-builder-root">
+
+  <!-- ══════════════════════════════════════════
+       PREVIEW AREA — 반응형 프레임 + 디바이스 토글
+  ══════════════════════════════════════════ -->
+  <div class="preview-wrapper">
+
+    <!-- 디바이스 전환 툴바 -->
+    <div class="device-toolbar">
+      <div class="device-toolbar-group" id="deviceBtnGroup">
+        <button class="device-btn" data-device="mobile-portrait">
+          <svg width="13" height="18" viewBox="0 0 13 18" fill="none"><rect x="1" y="1" width="11" height="16" rx="2" stroke-width="1.4"/></svg>
+          Mobile 세로
+        </button>
+        <button class="device-btn" data-device="mobile-landscape">
+          <svg width="18" height="13" viewBox="0 0 18 13" fill="none"><rect x="1" y="1" width="16" height="11" rx="2" stroke-width="1.4"/></svg>
+          Mobile 가로
+        </button>
+        <button class="device-btn" data-device="tablet">
+          <svg width="15" height="18" viewBox="0 0 15 18" fill="none"><rect x="1" y="1" width="13" height="16" rx="2" stroke-width="1.4"/></svg>
+          Tablet
+        </button>
+        <button class="device-btn is-active" data-device="pc">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><rect x="1" y="1" width="16" height="11" rx="1.5" stroke-width="1.4"/><path d="M6 14h6" stroke-width="1.4" stroke-linecap="round"/></svg>
+          PC
+        </button>
+        <button class="device-btn" data-device="custom">
+          <svg width="16" height="14" viewBox="0 0 16 14" fill="none"><path d="M2 4h6M12 4h2M2 10h2M8 10h6" stroke-width="1.4" stroke-linecap="round"/><circle cx="9.5" cy="4" r="1.8" stroke-width="1.4"/><circle cx="5.5" cy="10" r="1.8" stroke-width="1.4"/></svg>
+          커스텀
+        </button>
+      </div>
+
+      <!-- 커스텀 선택 시 너비×높이 직접 입력 -->
+      <div class="device-custom-control" id="deviceCustomControl" style="display:none;">
+        <input type="number" id="customW" class="dim-input" min="280" max="2560" value="360" aria-label="너비(px)">
+        <span class="dim-x">×</span>
+        <input type="number" id="customH" class="dim-input" min="280" max="1600" value="800" aria-label="높이(px)">
+        <span class="dim-unit">px</span>
+      </div>
+
+      <div class="device-toolbar-spacer"></div>
+
+      <span class="device-size-label" id="deviceSizeLabel">1280 × 720 · 가로모드</span>
+    </div>
+
+    <!-- 스테이지 + 디바이스 프레임 -->
+    <div class="device-stage">
+      <div class="device-frame mode-landscape" id="deviceFrame" data-uipos="bottom">
+
+        <!-- 웹뷰 전체 스케일 래퍼: 프레임이 최소 폭(375px) 미만이면 reflow 대신 통째로 비율 축소 -->
+        <div class="ev-scale" id="evScale">
+
+        <!-- 좌상단 컨트롤(햄버거) — 본문 스크롤과 무관하게 웹뷰 좌상단에 고정 -->
+        <div class="ev-topleft">
+          <button class="ev-hamburger" id="evHamburger" aria-label="메뉴 열기">
+            <span></span><span></span><span></span>
+          </button>
+        </div>
+
+        <!-- 우상단 컨트롤(기능 버튼) — 가로형: 가로 펼침 / 세로·좁은 프레임: ⋯ 축약 -->
+        <div class="ev-topright">
+          <button class="ev-more-btn" id="evMoreBtn" aria-label="더보기 기능">⋯</button>
+          <div class="ev-header-actions" id="evHeaderActions">
+            <button class="ev-action-btn" data-fn="notice">유의 사항</button>
+            <button class="ev-action-btn" data-fn="claim">리워드 수령 내역</button>
+            <button class="ev-action-btn" data-fn="currency" style="display:none;">재화 획득/사용 내역</button>
+          </div>
+        </div>
+
+        <!-- 기간 헤더: 프레임 상단 풀폭 고정 오버레이 (스크롤·UI위치 무관하게 상단 유지) -->
+        <div class="ev-header">
+          <div class="ev-period" id="evPeriod">
+            <div class="ev-period-row" id="event-row">
+              <span class="lbl">이벤트</span>
+              <span class="div"></span>
+              <span class="val" id="event-period-text">2025.05.29 10:00 ~ 2025.06.30 09:59</span>
+            </div>
+            <div class="ev-period-row hidden" id="reward-row">
+              <span class="lbl">리워드 수령</span>
+              <span class="div"></span>
+              <span class="val" id="reward-period-text">05/29/2025 10:00 ~ 06/30/2025 09:59</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 고정 배경 레이어 — 모든 uipos에서 노출 (배경이미지) -->
+        <div class="ev-bg-fixed" id="evBgFixed">
+          <div class="ev-bg-image">
+            <!-- 키비주얼 위치 박스 — ev-bg-image 안에서 이미지 영역을 절대 벗어나지 않음 -->
+            <div class="ev-kv-box" id="evKvBox">
+              <div class="ev-kv-img"><span>KEY VISUAL</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 딤 오버레이 (세로모드 드로어) -->
+        <div class="ev-dim" id="evDim"></div>
+
+        <!-- LNB -->
+        <nav class="ev-lnb" id="evLnb">
+          <button class="ev-lnb-close" id="evLnbClose" aria-label="LNB 닫기">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3l10 10M13 3L3 13" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+          <div class="ev-lnb-item" data-state="Active"><p>LNB Actived</p></div>
+          <div class="ev-lnb-item"><p>LNB Enabled</p></div>
+          <div class="ev-lnb-item"><p>TEXTTEXTTEXTTEXT 텍스트는 최대 3 줄</p></div>
+          <div class="ev-lnb-item"><p>TEXTTEXTTEXTTEXT</p></div>
+          <div class="ev-lnb-item"><p>TEXTTEXTTEXTTEXT</p></div>
+        </nav>
+
+        <!-- 이벤트 웹뷰 본문 -->
+        <div class="ev-body" id="evBody">
+
+          <!-- HERO: 키비주얼(최상단 top:0) + 그 위에 헤더 절대배치 오버레이 -->
+          <div class="ev-hero">
+
+            <!-- 비주얼 (키비주얼 — 그라데이션은 이미지에 포함) -->
+            <div class="ev-visual">
+              <div class="ev-visual-img"><span>KEY VISUAL</span></div>
+            </div>
+
+          </div><!-- /ev-hero -->
+
+          <!-- 미션 영역 -->
+          <div class="ev-mission-wrap">
+
+            <!-- 툴바: 초기화 기간 + 일괄 수령 -->
+            <div class="ev-toolbar">
+              <span class="ev-reset-info"><span class="ico">i</span>미션 초기화 까지 00시간 00분</span>
+              <button class="ev-bulk-btn">일괄 수령</button>
+            </div>
+
+            <!-- 미션 리스트 (가로 바형) -->
+            <div class="ev-mission-list" id="evMissionList">
+
+              <div class="ev-mission-bar">
+                <div class="ev-mb-main">
+                  <p class="ev-mb-title">TEXTTEXTTEXTTEXTTEXT 미션명</p>
+                  <span class="ev-mb-progress"><span class="frac"><b>5</b> / 5</span><span class="info">i</span></span>
+                </div>
+                <div class="ev-mb-reward">
+                  <div class="ev-mb-reward-thumb"><span class="ev-mb-reward-qty">× 9,999K</span></div>
+                  <p class="ev-mb-reward-name">리워드명</p>
+                  <p class="ev-mb-reward-txt">× 9,999K</p>
+                </div>
+                <button class="ev-mb-claim" data-state="claimable">보상 받기</button>
+              </div>
+
+              <div class="ev-mission-bar" data-bg="gray">
+                <div class="ev-mb-main">
+                  <p class="ev-mb-title">TEXTTEXTTEXTTEXTTEXT 미션명</p>
+                  <span class="ev-mb-progress"><span class="frac"><b>3</b> / 5</span><span class="info">i</span></span>
+                </div>
+                <div class="ev-mb-reward">
+                  <div class="ev-mb-reward-thumb"><span class="ev-mb-reward-qty">× 9,999K</span></div>
+                  <p class="ev-mb-reward-name">리워드명</p>
+                  <p class="ev-mb-reward-txt">× 9,999K</p>
+                </div>
+                <button class="ev-mb-claim" data-state="locked">미달성</button>
+              </div>
+
+              <div class="ev-mission-bar">
+                <div class="ev-mb-main">
+                  <p class="ev-mb-title">TEXTTEXTTEXTTEXTTEXT 미션명</p>
+                  <span class="ev-mb-progress"><span class="frac"><b>0</b> / 5</span><span class="info">i</span></span>
+                </div>
+                <div class="ev-mb-reward">
+                  <div class="ev-mb-reward-thumb"><span class="ev-mb-reward-qty">× 9,999K</span></div>
+                  <p class="ev-mb-reward-name">리워드명</p>
+                  <p class="ev-mb-reward-txt">× 9,999K</p>
+                </div>
+                <button class="ev-mb-claim" data-state="locked">미달성</button>
+              </div>
+
+              <div class="ev-mission-bar" data-bg="dark">
+                <div class="ev-mb-main">
+                  <p class="ev-mb-title">TEXTTEXTTEXTTEXTTEXT 미션명</p>
+                  <span class="ev-mb-progress"><span class="frac"><b>5</b> / 5</span><span class="info">i</span></span>
+                </div>
+                <div class="ev-mb-reward">
+                  <div class="ev-mb-reward-thumb"><span class="ev-mb-reward-qty">× 9,999K</span></div>
+                  <p class="ev-mb-reward-name">리워드명</p>
+                  <p class="ev-mb-reward-txt">× 9,999K</p>
+                </div>
+                <button class="ev-mb-claim" data-state="claimed">수령완료</button>
+              </div>
+
+              <div class="ev-mission-bar">
+                <div class="ev-mb-main">
+                  <p class="ev-mb-title">TEXTTEXTTEXTTEXTTEXT 미션명</p>
+                  <span class="ev-mb-progress"><span class="frac"><b>2</b> / 5</span><span class="info">i</span></span>
+                </div>
+                <div class="ev-mb-reward">
+                  <div class="ev-mb-reward-thumb"><span class="ev-mb-reward-qty">× 9,999K</span></div>
+                  <p class="ev-mb-reward-name">리워드명</p>
+                  <p class="ev-mb-reward-txt">× 9,999K</p>
+                </div>
+                <button class="ev-mb-claim" data-state="locked">미달성</button>
+              </div>
+
+              <div class="ev-mission-bar" data-bg="gray">
+                <div class="ev-mb-main">
+                  <p class="ev-mb-title">TEXTTEXTTEXTTEXTTEXT 미션명</p>
+                  <span class="ev-mb-progress"><span class="frac"><b>5</b> / 5</span><span class="info">i</span></span>
+                </div>
+                <div class="ev-mb-reward">
+                  <div class="ev-mb-reward-thumb"><span class="ev-mb-reward-qty">× 9,999K</span></div>
+                  <p class="ev-mb-reward-name">리워드명</p>
+                  <p class="ev-mb-reward-txt">× 9,999K</p>
+                </div>
+                <button class="ev-mb-claim" data-state="claimable">보상 받기</button>
+              </div>
+
+              <div class="ev-mission-bar" data-bg="dark">
+                <div class="ev-mb-main">
+                  <p class="ev-mb-title">TEXTTEXTTEXTTEXTTEXT 미션명</p>
+                  <span class="ev-mb-progress"><span class="frac"><b>0</b> / 5</span><span class="info">i</span></span>
+                </div>
+                <div class="ev-mb-reward">
+                  <div class="ev-mb-reward-thumb"><span class="ev-mb-reward-qty">× 9,999K</span></div>
+                  <p class="ev-mb-reward-name">리워드명</p>
+                  <p class="ev-mb-reward-txt">× 9,999K</p>
+                </div>
+                <button class="ev-mb-claim" data-state="locked">미달성</button>
+              </div>
+
+              <div class="ev-mission-bar">
+                <div class="ev-mb-main">
+                  <p class="ev-mb-title">TEXTTEXTTEXTTEXTTEXT 미션명</p>
+                  <span class="ev-mb-progress"><span class="frac"><b>3</b> / 5</span><span class="info">i</span></span>
+                </div>
+                <div class="ev-mb-reward">
+                  <div class="ev-mb-reward-thumb"><span class="ev-mb-reward-qty">× 9,999K</span></div>
+                  <p class="ev-mb-reward-name">리워드명</p>
+                  <p class="ev-mb-reward-txt">× 9,999K</p>
+                </div>
+                <button class="ev-mb-claim" data-state="locked">미달성</button>
+              </div>
+
+              <div class="ev-mission-bar" data-bg="gray">
+                <div class="ev-mb-main">
+                  <p class="ev-mb-title">TEXTTEXTTEXTTEXTTEXT 미션명</p>
+                  <span class="ev-mb-progress"><span class="frac"><b>5</b> / 5</span><span class="info">i</span></span>
+                </div>
+                <div class="ev-mb-reward">
+                  <div class="ev-mb-reward-thumb"><span class="ev-mb-reward-qty">× 9,999K</span></div>
+                  <p class="ev-mb-reward-name">리워드명</p>
+                  <p class="ev-mb-reward-txt">× 9,999K</p>
+                </div>
+                <button class="ev-mb-claim" data-state="claimable">보상 받기</button>
+              </div>
+
+              <div class="ev-mission-bar">
+                <div class="ev-mb-main">
+                  <p class="ev-mb-title">TEXTTEXTTEXTTEXTTEXT 미션명</p>
+                  <span class="ev-mb-progress"><span class="frac"><b>1</b> / 5</span><span class="info">i</span></span>
+                </div>
+                <div class="ev-mb-reward">
+                  <div class="ev-mb-reward-thumb"><span class="ev-mb-reward-qty">× 9,999K</span></div>
+                  <p class="ev-mb-reward-name">리워드명</p>
+                  <p class="ev-mb-reward-txt">× 9,999K</p>
+                </div>
+                <button class="ev-mb-claim" data-state="locked">미달성</button>
+              </div>
+
+            </div><!-- /ev-mission-list -->
+          </div><!-- /ev-mission-wrap -->
+        </div><!-- /ev-body -->
+
+        <!-- ── 웹뷰 내부 팝업 (프레임 기준 absolute) ── -->
+        <div class="ev-popup rwd-popup" id="Common_Popup_Reward">
+          <div class="ev-popup-overlay" data-close="reward"></div>
+          <div class="rwd-modal">
+            <div class="rwd-modal-head">
+              <span class="rwd-modal-title">보상 획득</span>
+              <button class="rwd-modal-close" data-close="reward"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5L15 15M15 5L5 15" stroke="#222" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+            </div>
+            <div class="rwd-modal-body">
+              <!-- ① 이미지+텍스트 -->
+              <div class="rwd-variant active" id="rwdVariant_text">
+                <div class="rwd-imgbox"></div>
+                <div class="rwd-info"><p class="rwd-name">리워드명리워드명</p><p class="rwd-count">X 99,999</p></div>
+              </div>
+              <!-- ② 이미지+수량(배지) -->
+              <div class="rwd-variant" id="rwdVariant_count">
+                <div class="rwd-imgbox"><span class="Common_Count"><span class="cc-ico"><svg width="11" height="11" viewBox="0 0 14 14" fill="none"><path d="M2 2L12 12M12 2L2 12" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></span><span class="cc-txt">9,999K</span></span></div>
+                <p class="rwd-name">리워드명리워드명</p>
+              </div>
+              <!-- ③ 이미지만 -->
+              <div class="rwd-variant" id="rwdVariant_imageonly">
+                <div class="rwd-imgbox"><span class="Common_Count"><span class="cc-ico"><svg width="11" height="11" viewBox="0 0 14 14" fill="none"><path d="M2 2L12 12M12 2L2 12" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></span><span class="cc-txt">9,999K</span></span></div>
+              </div>
+            </div>
+            <div class="rwd-modal-foot"><button class="rwd-modal-btn" data-close="reward">확인</button></div>
+          </div>
+        </div>
+        <div class="ev-popup" id="Common_Popup_Notice">
+          <div class="ev-popup-overlay" data-close="notice"></div>
+          <div class="ev-popup-modal">
+            <div class="ev-popup-head"><span class="ttl">유의 사항</span><button class="ev-popup-x" data-close="notice"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4l10 10M14 4L4 14" stroke="#222" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+            <div class="ev-popup-content"><div class="ev-popup-ph" id="noticeBody">세부 설정에서 등록한 유의사항이 표시됩니다.</div></div>
+            <div class="ev-popup-foot"><button class="ev-popup-confirm" data-close="notice">확인</button></div>
+          </div>
+        </div>
+        <div class="ev-popup" id="Common_Popup_ClaimHistory">
+          <div class="ev-popup-overlay" data-close="claim"></div>
+          <div class="ev-popup-modal">
+            <div class="ev-popup-head"><span class="ttl">리워드 수령 내역</span><button class="ev-popup-x" data-close="claim"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4l10 10M14 4L4 14" stroke="#222" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+            <div class="ev-popup-content">
+              <table class="ev-popup-table"><thead><tr><th>구분</th><th>획득한 리워드</th><th>지급 개수</th><th>지급일</th></tr></thead>
+              <tbody><tr><td>Summer Event</td><td>리워드명</td><td>000,000</td><td>2025.05.29 12:00</td></tr><tr><td>Summer Event</td><td>리워드명</td><td>000,000</td><td>2025.05.30 09:10</td></tr></tbody></table>
+            </div>
+            <div class="ev-popup-foot"><button class="ev-popup-confirm" data-close="claim">확인</button></div>
+          </div>
+        </div>
+        <div class="ev-popup" id="Common_Popup_Currency">
+          <div class="ev-popup-overlay" data-close="currency"></div>
+          <div class="ev-popup-modal">
+            <div class="ev-popup-head"><span class="ttl">재화 획득/사용 내역</span><button class="ev-popup-x" data-close="currency"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4l10 10M14 4L4 14" stroke="#222" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+            <div class="ev-popup-content">
+              <table class="ev-popup-table"><thead><tr><th>일시</th><th>구분</th><th>획득/사용</th><th>보유재화</th></tr></thead>
+              <tbody><tr><td>2025.05.29 12:00</td><td>획득</td><td>+ 100</td><td>1,100</td></tr><tr><td>2025.05.30 09:10</td><td>사용</td><td>- 50</td><td>1,050</td></tr></tbody></table>
+            </div>
+            <div class="ev-popup-foot"><button class="ev-popup-confirm" data-close="currency">확인</button></div>
+          </div>
+        </div>
+
+        </div><!-- /ev-scale -->
+
+        <!-- 드래그 리사이즈 핸들 (우하단) — 마우스로 프레임 크기 조절 -->
+        <div class="resize-handle" id="resizeHandle" title="드래그하여 화면 크기 조절">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M13 5L5 13M13 9.5L9.5 13" stroke="rgba(0,0,0,0.55)" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div><!-- /device-frame -->
+    </div><!-- /device-stage -->
+  </div><!-- /preview-wrapper -->
+
+  <!-- ══════════════════════════════════════════
+       ADMIN PANEL — 우측 세부 화면 설정
+  ══════════════════════════════════════════ -->
+  <div class="Setup_ScreenDetail_Panel">
+    <div class="Setup_ScreenDetail_Header">
+      <h2>세부 화면 설정 — 미션 리스트형 (반응형)</h2>
+      <p class="sub">디바이스 토글로 미리보기 전환 · 설정 변경 시 즉시 반영</p>
+    </div>
+
+    <!-- 공통: 기간 UI 설정 -->
+    <div class="acc">
+      <button class="acc-header"><span class="label">기간 UI 설정</span>
+        <span class="arrow"><svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="#222" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+      <div class="acc-body is-hidden">
+        <div class="opt-section">
+          <p class="opt-section-title">이벤트 기간 표기</p>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="event-period" value="timer"><span class="opt-label">남은 시간 타이머</span></label>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="event-period" value="none"><span class="opt-label">표기 없음</span></label>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="event-period" value="2025/05/29 10:00 ~ 2025/06/30 09:59"><span class="opt-label-box">2025/05/29 10:00 ~ 2025/06/30 09:59</span></label>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="event-period" value="2025.05.29 10:00 ~ 2025.06.30 09:59" checked><span class="opt-label-box">2025.05.29 10:00 ~ 2025.06.30 09:59</span></label>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="event-period" value="05/29/2025 10:00 ~ 06/30/2025 09:59"><span class="opt-label-box">05/29/2025 10:00 ~ 06/30/2025 09:59</span></label>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="event-period" value="05.29.2025 10:00 ~ 06.30.2025 09:59 (UTC+9)"><span class="opt-label-box">05.29.2025 10:00 ~ 06.30.2025 09:59 (UTC+9)</span></label>
+        </div>
+        <div class="opt-divider"></div>
+        <div class="opt-section">
+          <p class="opt-section-title">리워드 수령 기간 표기</p>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="reward-period" value="none" checked><span class="opt-label">표기 없음</span></label>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="reward-period" value="timer"><span class="opt-label">남은 시간 타이머</span></label>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="reward-period" value="05/29/2025 10:00 ~ 06/30/2025 09:59"><span class="opt-label-box">05/29/2025 10:00 ~ 06/30/2025 09:59</span></label>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="reward-period" value="05.29.2025 10:00 ~ 06.30.2025 09:59 (UTC+9)"><span class="opt-label-box">05.29.2025 10:00 ~ 06.30.2025 09:59 (UTC+9)</span></label>
+        </div>
+        <div class="opt-divider"></div>
+        <div class="opt-section">
+          <p class="opt-section-title">미션 초기화 기간 표기</p>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="mission-reset" value="timer" checked><span class="opt-label">미션 초기화 까지 00시간 00분</span></label>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="mission-reset" value="none"><span class="opt-label">표기 없음</span></label>
+        </div>
+        <div class="opt-divider"></div>
+        <div class="panel-color-row">
+          <span class="panel-color-label">헤더 배경 색상</span>
+          <div class="grd-picker" id="gp-periodBg">
+            <div class="grd-trigger">
+              <div class="grd-swatch" style="background:#000000;"></div>
+              <span class="grd-hex">000000</span>
+              <svg class="grd-caret" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="#999" stroke-width="1.4" stroke-linecap="round"/></svg>
+            </div>
+            <div class="grd-panel">
+              <div class="grd-types">
+                <button class="grd-type-btn is-active" data-type="solid">기본</button>
+                <button class="grd-type-btn" data-type="linear">선형</button>
+                <button class="grd-type-btn" data-type="radial">방사형</button>
+                <button class="grd-type-btn" data-type="conic">각도형</button>
+                <button class="grd-type-btn" data-type="diamond">다이아몬드</button>
+              </div>
+              <div class="grd-preview"></div>
+              <div class="grd-stops"></div>
+              <button class="grd-add-stop" type="button">+ 색상 추가</button>
+              <div class="grd-angle-row">
+                <label>각도</label>
+                <input type="range" min="0" max="360" value="90" class="grd-angle">
+                <span class="grd-angle-val">90°</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 공통: 배경 설정 -->
+    <div class="acc">
+      <button class="acc-header"><span class="label">배경 설정</span>
+        <span class="arrow"><svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="#222" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+      <div class="acc-body is-hidden">
+        <div class="panel-color-row">
+          <span class="panel-color-label">페이지 배경 색상</span>
+          <div class="grd-picker" id="gp-bg">
+            <div class="grd-trigger">
+              <div class="grd-swatch" style="background:#d7dade;"></div>
+              <span class="grd-hex">D7DADE</span>
+              <svg class="grd-caret" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="#999" stroke-width="1.4" stroke-linecap="round"/></svg>
+            </div>
+            <div class="grd-panel">
+              <div class="grd-types">
+                <button class="grd-type-btn is-active" data-type="solid">기본</button>
+                <button class="grd-type-btn" data-type="linear">선형</button>
+                <button class="grd-type-btn" data-type="radial">방사형</button>
+                <button class="grd-type-btn" data-type="conic">각도형</button>
+                <button class="grd-type-btn" data-type="diamond">다이아몬드</button>
+              </div>
+              <div class="grd-preview"></div>
+              <div class="grd-stops"></div>
+              <button class="grd-add-stop" type="button">+ 색상 추가</button>
+              <div class="grd-angle-row">
+                <label>각도</label>
+                <input type="range" min="0" max="360" value="90" class="grd-angle">
+                <span class="grd-angle-val">90°</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="common-note">배경색은 단일 변수(<b>--event-bg-color</b>)로 전체 배경에 적용됩니다. 키비주얼 가로 최대 1920px, 초과분은 이 배경색이 노출됩니다. 키비주얼 이미지는 아래 세부 설정에서 등록(그라데이션은 이미지 포함).</div>
+        <div class="panel-btn-line">
+          <button class="panel-detail-btn" id="bgDetailOpenBtn">
+            <span class="plus"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="#5f646f" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+            세부 설정 (키비주얼 이미지)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 공통: LNB 설정(배너) -->
+    <div class="acc">
+      <button class="acc-header"><span class="label">LNB 설정(배너)</span>
+        <span class="arrow"><svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="#222" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+      <div class="acc-body is-hidden">
+        <div class="common-note">햄버거 LNB 배너(활성 항목)의 이미지/텍스트를 등록합니다.</div>
+        <div class="panel-btn-line">
+          <button class="panel-detail-btn" id="lnbDetailOpenBtn">
+            <span class="plus"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="#5f646f" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+            세부 설정
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 기본 UI 설정 — 템플릿 전용 (이번엔 비움) -->
+    <div class="acc Template_UISetting">
+      <button class="acc-header is-open" id="uiSettingToggle"><span class="label">기본 UI 설정</span>
+        <span class="arrow"><svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="#222" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+      <div class="acc-body" id="uiSettingBody">
+        <div class="opt-section">
+          <p class="opt-section-title">미션 레이아웃 유형</p>
+          <div class="opt-row-inline">
+            <label class="opt-row"><input class="opt-radio" type="radio" name="mission-layout" value="list" checked><span class="opt-label">리스트형</span></label>
+            <label class="opt-row"><input class="opt-radio" type="radio" name="mission-layout" value="card"><span class="opt-label">카드형</span></label>
+          </div>
+        </div>
+        <div class="opt-divider" id="scrollDirDivider" style="display:none;"></div>
+        <div class="opt-section" id="scrollDirSection" style="display:none;">
+          <p class="opt-section-title">스크롤 방향</p>
+          <div class="opt-row-inline">
+            <label class="opt-row"><input class="opt-radio" type="radio" name="card-scroll-dir" value="vertical" checked><span class="opt-label">세로</span></label>
+            <label class="opt-row"><input class="opt-radio" type="radio" name="card-scroll-dir" value="horizontal"><span class="opt-label">가로</span></label>
+          </div>
+        </div>
+        <div class="opt-divider" id="uiPosDivider"></div>
+        <div class="opt-section" id="uiPosSection">
+          <p class="opt-section-title">미션 UI 위치</p>
+          <div class="opt-row-inline">
+            <label class="opt-row"><input class="opt-radio" type="radio" name="mission-uipos" value="bottom" checked><span class="opt-label">아래</span></label>
+            <label class="opt-row"><input class="opt-radio" type="radio" name="mission-uipos" value="left"><span class="opt-label">왼쪽</span></label>
+            <label class="opt-row"><input class="opt-radio" type="radio" name="mission-uipos" value="right"><span class="opt-label">오른쪽</span></label>
+          </div>
+        </div>
+        <div class="opt-divider" id="alignDivider"></div>
+        <div class="opt-section" id="alignSection">
+          <p class="opt-section-title">내부 정렬</p>
+          <div class="opt-row-inline">
+            <label class="opt-row"><input class="opt-radio" type="radio" name="mission-align" value="left" checked><span class="opt-label">왼쪽</span></label>
+            <label class="opt-row"><input class="opt-radio" type="radio" name="mission-align" value="center"><span class="opt-label">중앙</span></label>
+            <label class="opt-row"><input class="opt-radio" type="radio" name="mission-align" value="right"><span class="opt-label">오른쪽</span></label>
+          </div>
+        </div>
+        <div class="opt-divider" id="rewardDisplayDivider"></div>
+        <div class="opt-section" id="rewardDisplaySection">
+          <p class="opt-section-title">리워드 표기법</p>
+          <div class="rd-options">
+            <label class="rd-option">
+              <div class="rd-thumb">
+                <div class="rd-img"><div class="rd-badge">×100</div></div>
+                <p class="rd-name">리워드명</p>
+              </div>
+              <input class="opt-radio" type="radio" name="reward-display" value="imgcount" checked>
+            </label>
+            <label class="rd-option">
+              <div class="rd-thumb">
+                <div class="rd-img"></div>
+                <p class="rd-name">리워드명</p>
+                <p class="rd-qty">× 100</p>
+              </div>
+              <input class="opt-radio" type="radio" name="reward-display" value="imgtxt">
+            </label>
+            <label class="rd-option">
+              <div class="rd-thumb">
+                <div class="rd-img"><div class="rd-badge">×100</div></div>
+              </div>
+              <input class="opt-radio" type="radio" name="reward-display" value="imgonly">
+            </label>
+          </div>
+        </div>
+        <div class="opt-divider"></div>
+        <div class="panel-color-row">
+          <span class="panel-color-label">미션 텍스트 색상</span>
+          <div class="grd-picker" id="gp-missionText">
+            <div class="grd-trigger"><div class="grd-swatch" style="background:#1a1a1a;"></div><span class="grd-hex">1A1A1A</span><svg class="grd-caret" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="#999" stroke-width="1.4" stroke-linecap="round"/></svg></div>
+            <div class="grd-panel"><div class="grd-types"><button class="grd-type-btn is-active" data-type="solid">기본</button><button class="grd-type-btn" data-type="linear">선형</button><button class="grd-type-btn" data-type="radial">방사형</button><button class="grd-type-btn" data-type="conic">각도형</button><button class="grd-type-btn" data-type="diamond">다이아몬드</button></div><div class="grd-preview"></div><div class="grd-stops"></div><button class="grd-add-stop" type="button">+ 색상 추가</button><div class="grd-angle-row"><label>각도</label><input type="range" min="0" max="360" value="90" class="grd-angle"><span class="grd-angle-val">90°</span></div></div>
+          </div>
+        </div>
+        <div class="panel-color-row" id="rewardTextColorRow">
+          <span class="panel-color-label">리워드 텍스트 색상</span>
+          <div class="grd-picker" id="gp-missionRewardText">
+            <div class="grd-trigger"><div class="grd-swatch" style="background:#333333;"></div><span class="grd-hex">333333</span><svg class="grd-caret" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="#999" stroke-width="1.4" stroke-linecap="round"/></svg></div>
+            <div class="grd-panel"><div class="grd-types"><button class="grd-type-btn is-active" data-type="solid">기본</button><button class="grd-type-btn" data-type="linear">선형</button><button class="grd-type-btn" data-type="radial">방사형</button><button class="grd-type-btn" data-type="conic">각도형</button><button class="grd-type-btn" data-type="diamond">다이아몬드</button></div><div class="grd-preview"></div><div class="grd-stops"></div><button class="grd-add-stop" type="button">+ 색상 추가</button><div class="grd-angle-row"><label>각도</label><input type="range" min="0" max="360" value="90" class="grd-angle"><span class="grd-angle-val">90°</span></div></div>
+          </div>
+        </div>
+        <div class="panel-color-row">
+          <span class="panel-color-label">리워드 수량 배경 색상</span>
+          <div class="grd-picker" id="gp-missionRewardBg">
+            <div class="grd-trigger"><div class="grd-swatch" style="background:#1a1a1a;"></div><span class="grd-hex">1A1A1A</span><svg class="grd-caret" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="#999" stroke-width="1.4" stroke-linecap="round"/></svg></div>
+            <div class="grd-panel"><div class="grd-types"><button class="grd-type-btn is-active" data-type="solid">기본</button><button class="grd-type-btn" data-type="linear">선형</button><button class="grd-type-btn" data-type="radial">방사형</button><button class="grd-type-btn" data-type="conic">각도형</button><button class="grd-type-btn" data-type="diamond">다이아몬드</button></div><div class="grd-preview"></div><div class="grd-stops"></div><button class="grd-add-stop" type="button">+ 색상 추가</button><div class="grd-angle-row"><label>각도</label><input type="range" min="0" max="360" value="90" class="grd-angle"><span class="grd-angle-val">90°</span></div></div>
+          </div>
+        </div>
+        <div class="panel-color-row">
+          <span class="panel-color-label">미션카드 배경 색상</span>
+          <div class="grd-picker" id="gp-missionCardBg">
+            <div class="grd-trigger"><div class="grd-swatch" style="background:#ffffff;"></div><span class="grd-hex">FFFFFF</span><svg class="grd-caret" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="#999" stroke-width="1.4" stroke-linecap="round"/></svg></div>
+            <div class="grd-panel"><div class="grd-types"><button class="grd-type-btn is-active" data-type="solid">기본</button><button class="grd-type-btn" data-type="linear">선형</button><button class="grd-type-btn" data-type="radial">방사형</button><button class="grd-type-btn" data-type="conic">각도형</button><button class="grd-type-btn" data-type="diamond">다이아몬드</button></div><div class="grd-preview"></div><div class="grd-stops"></div><button class="grd-add-stop" type="button">+ 색상 추가</button><div class="grd-angle-row"><label>각도</label><input type="range" min="0" max="360" value="90" class="grd-angle"><span class="grd-angle-val">90°</span></div></div>
+          </div>
+        </div>
+        <div class="panel-color-row">
+          <span class="panel-color-label">미션카드 라인 색상</span>
+          <div class="grd-picker" id="gp-missionCardLine">
+            <div class="grd-trigger"><div class="grd-swatch" style="background:#000000;"></div><span class="grd-hex">000000</span><svg class="grd-caret" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="#999" stroke-width="1.4" stroke-linecap="round"/></svg></div>
+            <div class="grd-panel"><div class="grd-types"><button class="grd-type-btn is-active" data-type="solid">기본</button><button class="grd-type-btn" data-type="linear">선형</button><button class="grd-type-btn" data-type="radial">방사형</button><button class="grd-type-btn" data-type="conic">각도형</button><button class="grd-type-btn" data-type="diamond">다이아몬드</button></div><div class="grd-preview"></div><div class="grd-stops"></div><button class="grd-add-stop" type="button">+ 색상 추가</button><div class="grd-angle-row"><label>각도</label><input type="range" min="0" max="360" value="90" class="grd-angle"><span class="grd-angle-val">90°</span></div></div>
+          </div>
+        </div>
+        <div class="opt-divider"></div>
+        <div class="panel-btn-line">
+          <button class="panel-detail-btn" id="uiSettingDetailOpenBtn">
+            <span class="plus"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="#5f646f" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+            세부 설정
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 공통: 보상 획득 결과 팝업 설정 -->
+    <div class="acc">
+      <button class="acc-header"><span class="label">보상 획득 결과 팝업 설정</span>
+        <span class="arrow"><svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="#222" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+      <div class="acc-body is-hidden">
+        <div class="opt-section">
+          <p class="opt-section-title">리워드 표기법</p>
+          <div class="rd-options">
+            <label class="rd-option">
+              <div class="rd-thumb">
+                <div class="rd-img"><div class="rd-badge">×100</div></div>
+                <p class="rd-name">리워드명</p>
+              </div>
+              <input class="opt-radio" type="radio" name="reward-type" value="count">
+            </label>
+            <label class="rd-option">
+              <div class="rd-thumb">
+                <div class="rd-img"></div>
+                <p class="rd-name">리워드명</p>
+                <p class="rd-qty">× 100</p>
+              </div>
+              <input class="opt-radio" type="radio" name="reward-type" value="text" checked>
+            </label>
+            <label class="rd-option">
+              <div class="rd-thumb">
+                <div class="rd-img"><div class="rd-badge">×100</div></div>
+              </div>
+              <input class="opt-radio" type="radio" name="reward-type" value="imageonly">
+            </label>
+          </div>
+        </div>
+        <div class="opt-divider"></div>
+        <div class="panel-color-row" id="rewardTextColorRow">
+          <span class="panel-color-label">리워드 텍스트 색상</span>
+          <div class="grd-picker" id="gp-rewardText">
+            <div class="grd-trigger">
+              <div class="grd-swatch" style="background:#1a1a1a;"></div>
+              <span class="grd-hex">1A1A1A</span>
+              <svg class="grd-caret" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="#999" stroke-width="1.4" stroke-linecap="round"/></svg>
+            </div>
+            <div class="grd-panel">
+              <div class="grd-types">
+                <button class="grd-type-btn is-active" data-type="solid">기본</button>
+                <button class="grd-type-btn" data-type="linear">선형</button>
+                <button class="grd-type-btn" data-type="radial">방사형</button>
+                <button class="grd-type-btn" data-type="conic">각도형</button>
+                <button class="grd-type-btn" data-type="diamond">다이아몬드</button>
+              </div>
+              <div class="grd-preview"></div>
+              <div class="grd-stops"></div>
+              <button class="grd-add-stop" type="button">+ 색상 추가</button>
+              <div class="grd-angle-row">
+                <label>각도</label>
+                <input type="range" min="0" max="360" value="90" class="grd-angle">
+                <span class="grd-angle-val">90°</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-color-row" id="rewardBgColorRow">
+          <span class="panel-color-label">리워드 수량 배경 색상</span>
+          <div class="grd-picker" id="gp-rewardBg">
+            <div class="grd-trigger">
+              <div class="grd-swatch" style="background:#1a1a1a;"></div>
+              <span class="grd-hex">1A1A1A</span>
+              <svg class="grd-caret" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="#999" stroke-width="1.4" stroke-linecap="round"/></svg>
+            </div>
+            <div class="grd-panel">
+              <div class="grd-types">
+                <button class="grd-type-btn is-active" data-type="solid">기본</button>
+                <button class="grd-type-btn" data-type="linear">선형</button>
+                <button class="grd-type-btn" data-type="radial">방사형</button>
+                <button class="grd-type-btn" data-type="conic">각도형</button>
+                <button class="grd-type-btn" data-type="diamond">다이아몬드</button>
+              </div>
+              <div class="grd-preview"></div>
+              <div class="grd-stops"></div>
+              <button class="grd-add-stop" type="button">+ 색상 추가</button>
+              <div class="grd-angle-row">
+                <label>각도</label>
+                <input type="range" min="0" max="360" value="90" class="grd-angle">
+                <span class="grd-angle-val">90°</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="opt-divider"></div>
+        <div class="panel-btn-line">
+          <button class="panel-detail-btn" id="rewardDetailOpenBtn">
+            <span class="plus"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="#5f646f" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+            세부 설정 (팝업 이미지)
+          </button>
+          <button class="panel-detail-btn" id="rewardPreviewBtn">결과 팝업 미리보기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 공통: 기능 버튼 추가 및 설정 -->
+    <div class="acc">
+      <button class="acc-header"><span class="label">기능 버튼 추가 및 설정</span>
+        <span class="arrow"><svg width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="#222" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+      <div class="acc-body is-hidden">
+        <div class="panel-btn-line">
+          <button class="panel-detail-btn" id="funcBtnAddOpenBtn">
+            <span class="plus"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="#5f646f" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+            버튼 추가
+          </button>
+        </div>
+        <div class="funcbtn-list" id="funcBtnList">
+          <div class="funcbtn-item" data-fn="notice">
+            <div class="funcbtn-item-left"><span class="funcbtn-grip"><span></span><span></span><span></span></span><span class="funcbtn-item-label">유의 사항</span></div>
+            <button class="panel-detail-btn" data-detail="notice">세부 설정</button>
+          </div>
+          <div class="funcbtn-item" data-fn="claim">
+            <div class="funcbtn-item-left"><span class="funcbtn-grip"><span></span><span></span><span></span></span><span class="funcbtn-item-label">리워드 수령 내역</span></div>
+            <button class="panel-detail-btn" data-detail="claim">세부 설정</button>
+          </div>
+          <div class="funcbtn-item is-hidden" data-fn="currency">
+            <div class="funcbtn-item-left"><span class="funcbtn-grip"><span></span><span></span><span></span></span><span class="funcbtn-item-label">재화 획득/사용 내역</span></div>
+            <button class="panel-detail-btn" data-detail="currency">세부 설정</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /Setup_ScreenDetail_Panel -->
+
+</div><!-- /event-builder-root -->
+
+<!-- ══════════════════════════════════════════
+     세부설정 팝업 (관리 패널 측, fixed 모달)
+══════════════════════════════════════════ -->
+<div class="cfg-popup-overlay" id="bgPopupOverlay">
+  <div class="cfg-popup">
+    <div class="cfg-popup-header"><span class="cfg-popup-title">키비주얼 이미지 설정</span>
+      <button class="cfg-popup-close" data-cfgclose="bg"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5L15 15M15 5L5 15" stroke="#222" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+    <div class="cfg-popup-divider"></div>
+    <div class="cfg-popup-body">
+      <div class="cfg-section-title"><span class="t">키비주얼 이미지 등록</span><span class="s">(가로/세로 모드 각 1종)</span></div>
+      <div class="upload-grid">
+        <div class="upload-col"><div class="upload-box" data-upload="bg-kr"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">KR</span></div>
+        <div class="upload-col"><div class="upload-box" data-upload="bg-en"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">EN</span></div>
+      </div>
+    </div>
+    <div class="cfg-popup-footer"><button class="cfg-btn-cancel" data-cfgclose="bg">취소</button><button class="cfg-btn-save" id="bgPopupSaveBtn">저장</button></div>
+  </div>
+</div>
+
+<div class="cfg-popup-overlay" id="rewardPopupOverlay">
+  <div class="cfg-popup">
+    <div class="cfg-popup-header"><span class="cfg-popup-title">보상 획득 결과 팝업 설정</span>
+      <button class="cfg-popup-close" data-cfgclose="reward"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5L15 15M15 5L5 15" stroke="#222" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+    <div class="cfg-popup-divider"></div>
+    <div class="cfg-popup-body">
+      <!-- ① 팝업 배경 이미지 -->
+      <div class="opt-section">
+        <p class="opt-section-title">팝업 배경 이미지</p>
+        <div class="panel-btn-line">
+          <label class="opt-row"><input class="opt-radio" type="radio" name="popup-bg-type" value="default" checked><span class="opt-label">기본 팝업 사용</span></label>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="popup-bg-type" value="custom"><span class="opt-label">이미지 등록</span></label>
+        </div>
+        <div class="cfg-preview-box" id="popupBgPreview">기본 팝업 이미지</div>
+        <div class="upload-grid" id="popupBgUploadArea" style="display:none;">
+          <div class="upload-col" style="flex:1;"><div class="upload-box" data-upload="reward-bg" style="width:100%;"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div></div>
+        </div>
+      </div>
+      <!-- ② 팝업 내 확인 버튼 -->
+      <div class="opt-section">
+        <p class="opt-section-title">팝업 내 확인 버튼</p>
+        <div class="panel-btn-line">
+          <label class="opt-row"><input class="opt-radio" type="radio" name="confirm-btn-type" value="default" checked><span class="opt-label">기본 버튼 사용</span></label>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="confirm-btn-type" value="custom"><span class="opt-label">이미지 등록</span></label>
+        </div>
+        <div class="cfg-preview-box" id="confirmBtnPreview" style="flex-direction:column;">
+          <button class="cfg-default-btn">확인</button>
+          <button class="cfg-default-btn">OK</button>
+        </div>
+        <div class="upload-grid" id="confirmBtnUploadArea" style="display:none;">
+          <div class="upload-col"><div class="upload-box" data-upload="confirm-kr"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">KR</span></div>
+          <div class="upload-col"><div class="upload-box" data-upload="confirm-en"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">EN</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="cfg-popup-footer"><button class="cfg-btn-cancel" data-cfgclose="reward">취소</button><button class="cfg-btn-save" id="rewardPopupSaveBtn">저장</button></div>
+  </div>
+</div>
+
+<div class="cfg-popup-overlay" id="funcAddOverlay">
+  <div class="cfg-popup" style="width:420px;">
+    <div class="cfg-popup-header"><span class="cfg-popup-title">버튼 추가</span>
+      <button class="cfg-popup-close" data-cfgclose="funcadd"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5L15 15M15 5L5 15" stroke="#222" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+    <div class="cfg-popup-divider"></div>
+    <div class="cfg-popup-body">
+      <label class="add-check-row"><input class="opt-check" type="checkbox" data-addfn="notice" checked><span class="lbl">유의 사항</span></label>
+      <label class="add-check-row"><input class="opt-check" type="checkbox" data-addfn="claim" checked><span class="lbl">리워드 수령 내역</span></label>
+      <label class="add-check-row"><input class="opt-check" type="checkbox" data-addfn="currency"><span class="lbl">재화 획득/사용 내역</span></label>
+    </div>
+    <div class="cfg-popup-footer"><button class="cfg-btn-cancel" data-cfgclose="funcadd">취소</button><button class="cfg-btn-save" id="funcAddSaveBtn">적용</button></div>
+  </div>
+</div>
+
+<!-- LNB 설정(배너) 세부 팝업 -->
+<div class="cfg-popup-overlay" id="lnbPopupOverlay">
+  <div class="cfg-popup">
+    <div class="cfg-popup-header"><span class="cfg-popup-title">LNB 설정(배너)</span><button class="cfg-popup-close" data-cfgclose="lnb"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5L15 15M15 5L5 15" stroke="#222" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+    <div class="cfg-popup-divider"></div>
+    <div class="cfg-popup-body">
+      <div class="cfg-sect">
+        <p class="cfg-sub">LNB 입력 방식</p>
+        <div class="panel-btn-line cfg-toggle-group">
+          <label class="opt-row"><input class="opt-radio" type="radio" name="lnb-type" value="image" checked><span class="opt-label">이미지만 업로드</span></label>
+          <label class="opt-row"><input class="opt-radio" type="radio" name="lnb-type" value="imagetext"><span class="opt-label">이미지 + 텍스트</span></label>
+        </div>
+        <div data-when="image">
+          <div class="cfg-section-title"><span class="t">이미지 등록</span><span class="s">(280×160px)</span></div>
+          <div class="upload-grid">
+            <div class="upload-col"><div class="upload-box" data-upload="lnb-kr"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">KR</span></div>
+            <div class="upload-col"><div class="upload-box" data-upload="lnb-en"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">EN</span></div>
+          </div>
+        </div>
+        <div data-when="imagetext" style="display:none;">
+          <div class="cfg-section-title"><span class="t">이미지 등록</span><span class="s">(280×160px)</span></div>
+          <div class="upload-grid"><div class="upload-col"><div class="upload-box" data-upload="lnb-imgtext-kr"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">KR</span></div></div>
+          <div style="margin-top:12px;" class="cfg-textarea-row"><span class="lang">KR</span><input class="lnb-text-input" id="lnbKrTextInput" type="text" maxlength="24" placeholder="텍스트를 입력하세요 (최대 24자)"></div>
+          <div class="cfg-textarea-row" style="margin-top:8px;"><span class="lang">EN</span><input class="lnb-text-input" id="lnbEnTextInput" type="text" maxlength="24" placeholder="Enter text (max 24 chars)"></div>
+        </div>
+      </div>
+    </div>
+    <div class="cfg-popup-footer"><button class="cfg-btn-cancel" data-cfgclose="lnb">취소</button><button class="cfg-btn-save" id="lnbPopupSaveBtn">저장</button></div>
+  </div>
+</div>
+
+<!-- 유의사항 팝업 설정 -->
+<div class="cfg-popup-overlay" id="funcNoticeOverlay">
+  <div class="cfg-popup wide">
+    <div class="cfg-popup-header"><span class="cfg-popup-title">유의사항 팝업 설정</span><button class="cfg-popup-close" data-cfgclose="funcNotice"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5L15 15M15 5L5 15" stroke="#222" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+    <div class="cfg-popup-divider"></div>
+    <div class="cfg-popup-body">
+      <div class="cfg-twocol">
+        <div class="cfg-col">
+          <div class="cfg-sect">
+            <p class="cfg-sub">유의사항 버튼</p>
+            <div class="panel-btn-line cfg-toggle-group">
+              <label class="opt-row"><input class="opt-radio" type="radio" name="notice-btn-type" value="default" checked><span class="opt-label">기본 버튼 사용</span></label>
+              <label class="opt-row"><input class="opt-radio" type="radio" name="notice-btn-type" value="custom"><span class="opt-label">이미지 등록</span></label>
+            </div>
+            <div class="cfg-btn-preview" data-when="default"><span class="lang" style="top:24px;">KR</span><span class="lang" style="top:80px;">EN</span><button class="cfg-default-btn" style="top:16px;">유의사항</button><button class="cfg-default-btn" style="top:72px;">Notice</button></div>
+            <div class="upload-grid" data-when="custom" style="display:none;">
+              <div class="upload-col"><div class="upload-box" data-upload="notice-btn-kr"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">KR</span></div>
+              <div class="upload-col"><div class="upload-box" data-upload="notice-btn-en"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">EN</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="cfg-col">
+          <div class="cfg-sect">
+            <p class="cfg-sub">유의사항 배경 입력 방식</p>
+            <div class="panel-btn-line cfg-toggle-group">
+              <label class="opt-row"><input class="opt-radio" type="radio" name="notice-bg-type" value="image" checked><span class="opt-label">이미지만 업로드</span></label>
+              <label class="opt-row"><input class="opt-radio" type="radio" name="notice-bg-type" value="text"><span class="opt-label">기본 이미지 + 텍스트</span></label>
+            </div>
+            <div class="upload-grid" data-when="image">
+              <div class="upload-col"><div class="upload-box" data-upload="notice-bg-kr"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">KR</span></div>
+              <div class="upload-col"><div class="upload-box" data-upload="notice-bg-en"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">EN</span></div>
+            </div>
+            <div data-when="text" style="display:none;">
+              <div class="cfg-textarea-row"><span class="lang">KR</span><textarea class="cfg-textarea" maxlength="2000" placeholder="버튼명 입력 영역 최대 2000자"></textarea></div>
+              <div class="cfg-textarea-row" style="margin-top:8px;"><span class="lang">EN</span><textarea class="cfg-textarea" maxlength="2000" placeholder="버튼명 입력 영역 최대 2000자"></textarea></div>
+            </div>
+          </div>
+          <div class="cfg-sect">
+            <p class="cfg-sub">팝업 내 확인 버튼</p>
+            <div class="panel-btn-line cfg-toggle-group">
+              <label class="opt-row"><input class="opt-radio" type="radio" name="notice-confirm-type" value="default" checked><span class="opt-label">기본 버튼 사용</span></label>
+              <label class="opt-row"><input class="opt-radio" type="radio" name="notice-confirm-type" value="custom"><span class="opt-label">이미지 등록</span></label>
+            </div>
+            <div class="cfg-btn-preview" data-when="default"><span class="lang" style="top:24px;">KR</span><span class="lang" style="top:80px;">EN</span><button class="cfg-default-btn" style="top:16px;">확인</button><button class="cfg-default-btn" style="top:72px;">OK</button></div>
+            <div class="upload-grid" data-when="custom" style="display:none;">
+              <div class="upload-col"><div class="upload-box" data-upload="notice-confirm-kr"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">KR</span></div>
+              <div class="upload-col"><div class="upload-box" data-upload="notice-confirm-en"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">EN</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cfg-popup-footer"><button class="cfg-btn-cancel" data-cfgclose="funcNotice">취소</button><button class="cfg-btn-save" id="funcNoticeSave">저장</button></div>
+  </div>
+</div>
+
+<!-- 리워드 수령 내역 팝업 설정 -->
+<div class="cfg-popup-overlay" id="funcClaimOverlay">
+  <div class="cfg-popup wide">
+    <div class="cfg-popup-header"><span class="cfg-popup-title">리워드 수령 내역 팝업 설정</span><button class="cfg-popup-close" data-cfgclose="funcClaim"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5L15 15M15 5L5 15" stroke="#222" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+    <div class="cfg-popup-divider"></div>
+    <div class="cfg-popup-body">
+      <div class="cfg-twocol">
+        <div class="cfg-col">
+          <div class="cfg-sect">
+            <p class="cfg-sub">리워드 수령 내역 버튼</p>
+            <div class="panel-btn-line cfg-toggle-group">
+              <label class="opt-row"><input class="opt-radio" type="radio" name="claim-btn-type" value="default" checked><span class="opt-label">기본 버튼 사용</span></label>
+              <label class="opt-row"><input class="opt-radio" type="radio" name="claim-btn-type" value="custom"><span class="opt-label">이미지 등록</span></label>
+            </div>
+            <div class="cfg-btn-preview" data-when="default"><span class="lang" style="top:24px;">KR</span><span class="lang" style="top:80px;">EN</span><button class="cfg-default-btn" style="top:16px;">수령 내역</button><button class="cfg-default-btn" style="top:72px;">History</button></div>
+            <div class="upload-grid" data-when="custom" style="display:none;">
+              <div class="upload-col"><div class="upload-box" data-upload="claim-btn-kr"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">KR</span></div>
+              <div class="upload-col"><div class="upload-box" data-upload="claim-btn-en"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">EN</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="cfg-col">
+          <div class="cfg-sect">
+            <p class="cfg-sub">테이블 표기 (컬럼명)</p>
+            <div class="cfg-textarea-row"><span class="lang">KR</span><table class="cfg-table" style="width:auto;"><tr><th><input class="cfg-table-input" value="구분"></th><th><input class="cfg-table-input" value="리워드"></th><th><input class="cfg-table-input" value="지급 개수"></th><th><input class="cfg-table-input" value="지급일"></th></tr></table></div>
+            <div class="cfg-textarea-row"><span class="lang">EN</span><table class="cfg-table" style="width:auto;"><tr><th><input class="cfg-table-input" value="Details"></th><th><input class="cfg-table-input" value="Reward"></th><th><input class="cfg-table-input" value="Qty"></th><th><input class="cfg-table-input" value="Date"></th></tr></table></div>
+          </div>
+          <div class="cfg-sect">
+            <p class="cfg-sub">배경 이미지 설정</p>
+            <div class="panel-btn-line cfg-toggle-group">
+              <label class="opt-row"><input class="opt-radio" type="radio" name="claim-table-bg" value="default" checked><span class="opt-label">기본 테이블 사용</span></label>
+              <label class="opt-row"><input class="opt-radio" type="radio" name="claim-table-bg" value="custom"><span class="opt-label">배경 이미지 등록</span></label>
+            </div>
+            <div data-when="default"><table class="cfg-table"><thead><tr><th>구분</th><th>획득한 리워드</th><th>지급 개수</th><th>지급일</th></tr></thead><tbody><tr><td>Summer Event</td><td>리워드명</td><td>000000</td><td>0000.00.00</td></tr></tbody></table></div>
+            <div class="upload-grid" data-when="custom" style="display:none;">
+              <div class="upload-col" style="flex:1;"><div class="upload-box" data-upload="claim-table-bg" style="width:100%;"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cfg-popup-footer"><button class="cfg-btn-cancel" data-cfgclose="funcClaim">취소</button><button class="cfg-btn-save" id="funcClaimSave">저장</button></div>
+  </div>
+</div>
+
+<!-- 재화 획득/사용 내역 팝업 설정 -->
+<div class="cfg-popup-overlay" id="funcCurrencyOverlay">
+  <div class="cfg-popup wide">
+    <div class="cfg-popup-header"><span class="cfg-popup-title">재화 획득/사용 내역 팝업 설정</span><button class="cfg-popup-close" data-cfgclose="funcCurrency"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 5L15 15M15 5L5 15" stroke="#222" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+    <div class="cfg-popup-divider"></div>
+    <div class="cfg-popup-body">
+      <div class="cfg-twocol">
+        <div class="cfg-col">
+          <div class="cfg-sect">
+            <p class="cfg-sub">재화 내역 버튼</p>
+            <div class="panel-btn-line cfg-toggle-group">
+              <label class="opt-row"><input class="opt-radio" type="radio" name="currency-btn-type" value="default" checked><span class="opt-label">기본 버튼 사용</span></label>
+              <label class="opt-row"><input class="opt-radio" type="radio" name="currency-btn-type" value="custom"><span class="opt-label">이미지 등록</span></label>
+            </div>
+            <div class="cfg-btn-preview" data-when="default"><span class="lang" style="top:24px;">KR</span><span class="lang" style="top:80px;">EN</span><button class="cfg-default-btn" style="top:16px;">재화 내역</button><button class="cfg-default-btn" style="top:72px;">Currency</button></div>
+            <div class="upload-grid" data-when="custom" style="display:none;">
+              <div class="upload-col"><div class="upload-box" data-upload="currency-btn-kr"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">KR</span></div>
+              <div class="upload-col"><div class="upload-box" data-upload="currency-btn-en"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div><span class="upload-lang">EN</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="cfg-col">
+          <div class="cfg-sect">
+            <p class="cfg-sub">테이블 표기 (컬럼명)</p>
+            <div class="cfg-textarea-row"><span class="lang">KR</span><table class="cfg-table" style="width:auto;"><tr><th><input class="cfg-table-input" value="일시"></th><th><input class="cfg-table-input" value="구분"></th><th><input class="cfg-table-input" value="획득/사용"></th><th><input class="cfg-table-input" value="보유재화"></th></tr></table></div>
+            <div class="cfg-textarea-row"><span class="lang">EN</span><table class="cfg-table" style="width:auto;"><tr><th><input class="cfg-table-input" value="Date"></th><th><input class="cfg-table-input" value="Type"></th><th><input class="cfg-table-input" value="Gain/Use"></th><th><input class="cfg-table-input" value="Balance"></th></tr></table></div>
+          </div>
+          <div class="cfg-sect">
+            <p class="cfg-sub">배경 이미지 설정</p>
+            <div class="panel-btn-line cfg-toggle-group">
+              <label class="opt-row"><input class="opt-radio" type="radio" name="currency-table-bg" value="default" checked><span class="opt-label">기본 테이블 사용</span></label>
+              <label class="opt-row"><input class="opt-radio" type="radio" name="currency-table-bg" value="custom"><span class="opt-label">배경 이미지 등록</span></label>
+            </div>
+            <div data-when="default"><table class="cfg-table"><thead><tr><th>일시</th><th>구분</th><th>획득/사용</th><th>보유재화</th></tr></thead><tbody><tr><td>0000.00.00</td><td>획득</td><td>+ 100</td><td>1,100</td></tr><tr><td>0000.00.00</td><td>사용</td><td>- 50</td><td>1,050</td></tr></tbody></table></div>
+            <div class="upload-grid" data-when="custom" style="display:none;">
+              <div class="upload-col" style="flex:1;"><div class="upload-box" data-upload="currency-table-bg" style="width:100%;"><span class="plus"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg></span><span class="hint">이미지를 등록해주세요</span><button class="upload-remove">✕</button></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cfg-popup-footer"><button class="cfg-btn-cancel" data-cfgclose="funcCurrency">취소</button><button class="cfg-btn-save" id="funcCurrencySave">저장</button></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     기본 UI 세부설정 팝업 (Mission_Card_UISetting_DetailPopup)
+══════════════════════════════════════════ -->
+<div class="cfg-popup-overlay" id="uiSettingDetailOverlay">
+  <div class="cfg-popup ui-detail">
+
+    <!-- Header -->
+    <div class="cfg-popup-header">
+      <p class="cfg-popup-title">기본 UI 설정</p>
+      <button class="cfg-popup-close" id="uiSettingDetailCloseBtn" aria-label="닫기">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4.5 4.5L13.5 13.5M13.5 4.5L4.5 13.5" stroke="#222" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="cfg-popup-divider"></div>
+
+    <!-- Tab -->
+    <div class="uid-tab">
+      <button class="uid-tab-item active" id="uidTabMission">
+        <div class="uid-tab-inner">미션 UI 설정</div>
+        <div class="uid-tab-bar"></div>
+      </button>
+      <button class="uid-tab-item" id="uidTabReward">
+        <div class="uid-tab-inner">리워드 UI 설정</div>
+        <div class="uid-tab-bar"></div>
+      </button>
+    </div>
+
+    <!-- 보상받기 버튼 유형 -->
+    <div class="uid-btn-type-wrap">
+      <div class="uid-btn-type-group">
+        <button class="uid-btn-type-btn" data-active="true" id="uidBtnTypeSplit">보상받기 버튼 분리형</button>
+        <button class="uid-btn-type-btn" data-active="false" id="uidBtnTypeMerged">보상받기 버튼 통합형</button>
+      </div>
+      <div class="uid-tooltip-wrap">
+        <div class="uid-tooltip-icon">?</div>
+        <div class="uid-tooltip-body">
+          보상받기 버튼 분리형 : 미션 완료 시 보상을 수령하기 위한 별도의 버튼이 추가됩니다.<br>
+          보상받기 버튼 통합형 : 미션 완료 시 미션 영역을 클릭(터치)하면 보상을 수령할 수 있습니다.
+        </div>
+      </div>
+    </div>
+    <div class="cfg-popup-divider"></div>
+
+    <!-- ── 미션 UI 설정 탭 패널 ── -->
+    <div class="uid-tab-panel" id="uidPanelMission">
+      <div class="uid-body">
+
+        <!-- Left: 리워드 수령 버튼 / 일괄 수령 버튼 -->
+        <div class="uid-body-col">
+
+          <!-- 리워드 수령 버튼 설정 (분리형 전용) -->
+          <div class="uid-section" id="uidClaimBtnSection">
+            <p class="uid-section-title">리워드 수령 버튼 설정</p>
+            <div class="uid-radio-group">
+              <label class="uid-radio-option"><input class="uid-radio" type="radio" name="uid-claim-btn-input" value="imageonly" checked><span class="uid-radio-label">이미지만 업로드</span></label>
+              <label class="uid-radio-option"><input class="uid-radio" type="radio" name="uid-claim-btn-input" value="imagetext"><span class="uid-radio-label">이미지 + 텍스트 입력</span></label>
+            </div>
+
+            <!-- 이미지만 업로드 Body -->
+            <div class="uid-claim-grid" id="uidClaimBodyImageOnly">
+              <div style="display:flex;gap:4px;align-items:baseline;margin-bottom:4px;">
+                <span class="uid-section-sub">버튼 이미지 등록</span>
+                <span class="uid-size-hint">(00×00 px)</span>
+              </div>
+              <div class="uid-claim-header">
+                <div class="uid-claim-header-item">미달성</div>
+                <div class="uid-claim-header-item">달성</div>
+                <div class="uid-claim-header-item">수령 완료</div>
+              </div>
+              <div class="uid-claim-row">
+                <span class="uid-claim-lang">KR</span>
+                <div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div>
+                <div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div>
+                <div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div>
+              </div>
+              <div class="uid-claim-row">
+                <span class="uid-claim-lang">EN</span>
+                <div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div>
+                <div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div>
+                <div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div>
+              </div>
+            </div>
+
+            <!-- 이미지+텍스트 Body -->
+            <div class="uid-claim-grid hidden" id="uidClaimBodyImageText">
+              <div style="display:flex;gap:4px;align-items:baseline;margin-bottom:4px;">
+                <span class="uid-section-sub">버튼 이미지 등록</span>
+                <span class="uid-size-hint">(00×00 px)</span>
+              </div>
+              <div class="uid-claim-img-cols">
+                <div class="uid-claim-img-col"><span class="uid-claim-img-col-label">미달성</span><div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div></div>
+                <div class="uid-claim-img-col"><span class="uid-claim-img-col-label">달성</span><div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div></div>
+                <div class="uid-claim-img-col"><span class="uid-claim-img-col-label">수령 완료</span><div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div></div>
+              </div>
+              <div class="uid-divider"></div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <span class="uid-section-sub">Text Color</span>
+                <div class="uid-color-picker">
+                  <div class="uid-color-picker-wrap"><input type="color" class="uid-color-chip" value="#ffffff"></div>
+                  <span class="uid-color-hex">FFFFFF</span>
+                </div>
+              </div>
+              <div class="uid-divider"></div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <span class="uid-section-sub">버튼명</span>
+                <div style="display:flex;gap:8px;padding-left:26px;">
+                  <div style="width:160px;text-align:center;font-size:11px;font-weight:600;color:#222;">미달성</div>
+                  <div style="width:160px;text-align:center;font-size:11px;font-weight:600;color:#222;">달성</div>
+                  <div style="width:160px;text-align:center;font-size:11px;font-weight:600;color:#222;">수령 완료</div>
+                </div>
+                <div class="uid-btn-name-row"><span class="uid-btn-name-lang">KR</span><input class="uid-btn-name-input" type="text" maxlength="16" placeholder="버튼명 (최대 16자)"><input class="uid-btn-name-input" type="text" maxlength="16" placeholder="버튼명 (최대 16자)"><input class="uid-btn-name-input" type="text" maxlength="16" placeholder="버튼명 (최대 16자)"></div>
+                <div class="uid-btn-name-row"><span class="uid-btn-name-lang">EN</span><input class="uid-btn-name-input" type="text" maxlength="16" placeholder="Button name"><input class="uid-btn-name-input" type="text" maxlength="16" placeholder="Button name"><input class="uid-btn-name-input" type="text" maxlength="16" placeholder="Button name"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 일괄 수령 버튼 설정 -->
+          <div class="uid-section">
+            <p class="uid-section-title">일괄 수령 버튼 설정</p>
+            <div class="uid-radio-group">
+              <label class="uid-radio-option"><input class="uid-radio" type="radio" name="uid-batch-claim-type" value="none" checked><span class="uid-radio-label">버튼 미사용</span></label>
+              <label class="uid-radio-option"><input class="uid-radio" type="radio" name="uid-batch-claim-type" value="imageonly"><span class="uid-radio-label">이미지만 업로드</span></label>
+              <label class="uid-radio-option"><input class="uid-radio" type="radio" name="uid-batch-claim-type" value="imagetext"><span class="uid-radio-label">이미지 + 텍스트 입력</span></label>
+            </div>
+            <!-- 이미지만 -->
+            <div class="uid-claim-grid hidden" id="uidBatchBodyImageOnly">
+              <div style="display:flex;gap:4px;align-items:baseline;margin-bottom:4px;"><span class="uid-section-sub">버튼 이미지 등록</span><span class="uid-size-hint">(00×00 px)</span></div>
+              <div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div>
+            </div>
+            <!-- 이미지+텍스트 -->
+            <div class="uid-claim-grid hidden" id="uidBatchBodyImageText">
+              <div style="display:flex;gap:4px;align-items:baseline;margin-bottom:4px;"><span class="uid-section-sub">버튼 이미지 등록</span><span class="uid-size-hint">(00×00 px)</span></div>
+              <div style="display:flex;gap:16px;align-items:flex-start;">
+                <div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                  <span class="uid-section-sub">Text Color</span>
+                  <div class="uid-color-picker">
+                    <div class="uid-color-picker-wrap"><input type="color" class="uid-color-chip" value="#ffffff"></div>
+                    <span class="uid-color-hex">FFFFFF</span>
+                  </div>
+                </div>
+              </div>
+              <div class="uid-divider"></div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <span class="uid-section-sub">버튼명</span>
+                <div class="uid-btn-name-row"><span class="uid-btn-name-lang">KR</span><input class="uid-btn-name-input" type="text" maxlength="16" placeholder="버튼명 (최대 16자)"></div>
+                <div class="uid-btn-name-row"><span class="uid-btn-name-lang">EN</span><input class="uid-btn-name-input" type="text" maxlength="16" placeholder="Button name"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div><!-- /uidPanelMission -->
+
+    <!-- ── 리워드 UI 설정 탭 패널 ── -->
+    <div class="uid-tab-panel hidden" id="uidPanelReward">
+      <div class="uid-body">
+
+        <!-- Left: 수령 완료 표기 / 수령 불가 표기 -->
+        <div class="uid-body-col">
+
+          <!-- 리워드 수령 완료 표기 -->
+          <div class="uid-section">
+            <p class="uid-section-title">리워드 수령 완료 표기</p>
+            <div class="uid-radio-group">
+              <label class="uid-radio-option"><input class="uid-radio" type="radio" name="uid-claimed-display" value="off" checked><span class="uid-radio-label">미표기</span></label>
+              <label class="uid-radio-option"><input class="uid-radio" type="radio" name="uid-claimed-display" value="on"><span class="uid-radio-label">표기</span></label>
+            </div>
+            <div class="uid-section-body hidden" id="uidClaimedBody">
+              <div style="display:flex;gap:4px;align-items:baseline;flex-wrap:wrap;">
+                <span class="uid-section-sub">이미지 등록</span>
+                <span class="uid-size-hint">(00×00 px)</span>
+                <span class="uid-caption">* 이미지가 등록되지 않은 경우 기본 Dimmed 상태로 표시됩니다.</span>
+              </div>
+              <label class="uid-lang-upload-check"><input class="uid-checkbox" type="checkbox" id="uidClaimedLangCheck"> 언어별 이미지 등록</label>
+              <div id="uidClaimedUploadSingle">
+                <div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div>
+              </div>
+              <div id="uidClaimedUploadLang" style="display:none;">
+                <div style="display:flex;gap:12px;align-items:flex-start;">
+                  <div class="uid-upload-wrap"><div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div><p class="uid-upload-lang">KR</p></div>
+                  <div class="uid-upload-wrap"><div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div><p class="uid-upload-lang">EN</p></div>
+                </div>
+              </div>
+              <!-- 미리보기 -->
+              <div class="uid-preview-section" style="margin-top:6px;">
+                <div class="uid-preview-item">
+                  <div class="uid-reward-img-box"><div class="uid-reward-img-inner"><span>리워드<br>이미지</span></div></div>
+                  <span class="uid-preview-label">수령 전</span>
+                </div>
+                <div class="uid-arrow-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 8h8M9 5l3 3-3 3" stroke="#222" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <div style="display:flex;gap:8px;align-items:flex-start;">
+                  <div class="uid-preview-item"><span class="uid-preview-caption">기본 예시</span><div class="uid-reward-img-box"><div class="uid-reward-img-inner"><span>리워드<br>이미지</span></div><div class="uid-dimmed-overlay"></div></div><span class="uid-preview-label">수령 후</span></div>
+                  <div class="uid-preview-item"><span class="uid-preview-caption">이미지 등록 예시</span><div class="uid-reward-img-box"><div class="uid-reward-img-inner"><span>리워드<br>이미지</span></div><div class="uid-dimmed-overlay"></div><div class="uid-custom-mark"><svg width="30" height="30" viewBox="0 0 36 36" fill="none"><circle cx="18" cy="18" r="16" fill="rgba(255,255,255,0.85)"/><path d="M10 18l6 6 10-12" stroke="#555" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 리워드 수령 불가 표기 -->
+          <div class="uid-section">
+            <p class="uid-section-title">리워드 수령 불가 표기</p>
+            <div class="uid-radio-group">
+              <label class="uid-radio-option"><input class="uid-radio" type="radio" name="uid-locked-display" value="off" checked><span class="uid-radio-label">미표기</span></label>
+              <label class="uid-radio-option"><input class="uid-radio" type="radio" name="uid-locked-display" value="on"><span class="uid-radio-label">표기</span></label>
+            </div>
+            <div class="uid-section-body hidden" id="uidLockedBody">
+              <div style="display:flex;gap:4px;align-items:baseline;flex-wrap:wrap;">
+                <span class="uid-section-sub">이미지 등록</span>
+                <span class="uid-size-hint">(00×00 px)</span>
+                <span class="uid-caption">* 이미지가 등록되지 않은 경우 기본 Dimmed 상태로 표시됩니다.</span>
+              </div>
+              <label class="uid-lang-upload-check"><input class="uid-checkbox" type="checkbox" id="uidLockedLangCheck"> 언어별 이미지 등록</label>
+              <div id="uidLockedUploadSingle">
+                <div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div>
+              </div>
+              <div id="uidLockedUploadLang" style="display:none;">
+                <div style="display:flex;gap:12px;align-items:flex-start;">
+                  <div class="uid-upload-wrap"><div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div><p class="uid-upload-lang">KR</p></div>
+                  <div class="uid-upload-wrap"><div class="uid-upload-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#9397a1" stroke-width="1.5" stroke-linecap="round"/></svg><span class="uid-upload-hint">이미지를 등록해주세요</span></div><p class="uid-upload-lang">EN</p></div>
+                </div>
+              </div>
+              <!-- 미리보기 -->
+              <div class="uid-preview-section" style="margin-top:6px;">
+                <div class="uid-preview-item"><span class="uid-preview-caption">기본 예시</span><div class="uid-reward-img-box"><div class="uid-reward-img-inner"><span>리워드<br>이미지</span></div><div class="uid-dimmed-overlay"></div></div><span class="uid-preview-label">수령 불가</span></div>
+                <div class="uid-preview-item"><span class="uid-preview-caption">이미지 등록 예시</span><div class="uid-reward-img-box"><div class="uid-reward-img-inner"><span>리워드<br>이미지</span></div><div class="uid-dimmed-overlay"></div><div class="uid-custom-mark"><svg width="30" height="30" viewBox="0 0 38 38" fill="none"><rect x="9" y="19" width="20" height="13" rx="2.5" fill="rgba(255,255,255,0.88)"/><path d="M13 19v-4a6 6 0 0 1 12 0v4" stroke="rgba(255,255,255,0.88)" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg></div></div><span class="uid-preview-label">수령 불가</span></div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /Left Col -->
+
+        <!-- Right: 빈 영역 -->
+        <div class="uid-body-col" style="visibility:hidden;"></div>
+
+      </div>
+    </div><!-- /uidPanelReward -->
+
+    <div class="cfg-popup-divider"></div>
+    <div class="cfg-popup-footer">
+      <button class="cfg-btn-cancel" id="uiSettingDetailCancelBtn">취소</button>
+      <button class="cfg-btn-save" id="uiSettingDetailSaveBtn">저장</button>
+    </div>
+
+  </div>
+</div><!-- /uiSettingDetailOverlay -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  /* ── 디바이스 정의 ── */
+  var DEVICES = {
+    'mobile-portrait':  { w: 375,  h: 812 },
+    'mobile-landscape': { w: 812,  h: 375 },
+    'tablet':           { w: 768,  h: 1024 },
+    'pc':               { w: 1920, h: 1080 }
+  };
+
+  var frame      = document.getElementById('deviceFrame');
+  var scaleWrap  = document.getElementById('evScale');
+  var sizeLabel  = document.getElementById('deviceSizeLabel');
+  var btnGroup   = document.getElementById('deviceBtnGroup');
+  var headerActs = document.getElementById('evHeaderActions');
+  var customCtrl = document.getElementById('deviceCustomControl');
+  var customW    = document.getElementById('customW');
+  var customH    = document.getElementById('customH');
+
+  function clampDim(v, min, max) {
+    v = parseInt(v, 10);
+    if (isNaN(v)) v = min;
+    return Math.max(min, Math.min(max, v));
+  }
+
+  /* 최소 레이아웃 폭 — 이 폭 미만이면 reflow 대신 웹뷰 전체를 비율 축소 */
+  var MIN_LAYOUT_W = 375;
+
+  /* 프레임 크기/모드 적용 (프리셋·커스텀 공통) */
+  function applyFrame(w, h) {
+    frame.style.width  = w + 'px';
+    frame.style.height = h + 'px';
+
+    /* 최소 폭 미만: 웹뷰(.ev-scale)를 375px 레이아웃으로 고정한 뒤 scale()로 비율 축소 */
+    var scaling = w < MIN_LAYOUT_W;
+    var scale = scaling ? (w / MIN_LAYOUT_W) : 1;
+    if (scaleWrap) {
+      if (scaling) {
+        scaleWrap.style.width     = MIN_LAYOUT_W + 'px';
+        scaleWrap.style.height    = (h / scale) + 'px';   /* 축소 후 시각 높이 = 프레임 높이 */
+        scaleWrap.style.transform = 'scale(' + scale + ')';
+      } else {
+        scaleWrap.style.width = '';
+        scaleWrap.style.height = '';
+        scaleWrap.style.transform = '';
+      }
+    }
+
+    /* 모드 판별 — 스케일 구간은 375px 세로 레이아웃으로 고정 */
+    var isPortrait = scaling ? true : (w <= h);
+    frame.classList.toggle('mode-portrait',  isPortrait);
+    frame.classList.toggle('mode-landscape', !isPortrait);
+    frame.classList.toggle('frame-narrow',   w < 720);   /* 좁은 프레임 컴팩트 처리 */
+    frame.classList.remove('lnb-open');                  /* 전환 시 드로어 닫기 */
+    if (headerActs) headerActs.classList.remove('is-expanded');
+
+    var modeTxt = scaling ? ('스케일 ' + Math.round(scale * 100) + '%')
+                          : (isPortrait ? '세로모드 (1열)' : '가로모드 (2열)');
+    sizeLabel.textContent = w + ' × ' + h + ' · ' + modeTxt;
+
+    /* 세로모드: 모든 uipos에서 ev-body.top = imgH+12, kv-box.height = imgH */
+    applyUiPosTop(isPortrait, scaling ? MIN_LAYOUT_W : w);
+  }
+
+  function applyUiPosTop(isPortrait, layoutW) {
+    var evBodyEl = document.getElementById('evBody');
+    if (!evBodyEl) return;
+
+    /* 세로/가로 모두 inline top 불필요 — portrait는 CSS margin-top:12px + flow, 가로는 absolute 기본값 */
+    evBodyEl.style.top = '';
+    evBodyEl.scrollTop = 0;
+
+    /* 가로 전환 시 inline style 초기화 (스크롤 고정 해제) */
+    if (!isPortrait) {
+      var topleftEl = document.querySelector('.ev-topleft');
+      if (topleftEl) topleftEl.style.top = '';
+      var toprightEl = document.querySelector('.ev-topright');
+      if (toprightEl) toprightEl.style.top = '';
+      var handleEl = document.getElementById('resizeHandle');
+      if (handleEl) { handleEl.style.top = ''; handleEl.style.bottom = ''; }
+      var lnbEl = document.getElementById('evLnb');
+      if (lnbEl) { lnbEl.style.top = ''; lnbEl.style.bottom = ''; lnbEl.style.height = ''; }
+      document.querySelectorAll('.ev-popup').forEach(function (popup) {
+        popup.style.top = ''; popup.style.bottom = ''; popup.style.height = '';
+      });
+    }
+    /* 세로 전환 시 device-frame scroll도 초기화 */
+    if (isPortrait) frame.scrollTop = 0;
+  }
+
+  /* 세로 모드 스크롤 시 ev-topleft(상단), resize-handle(하단), ev-lnb 화면 기준 고정 */
+  frame.addEventListener('scroll', function () {
+    if (!frame.classList.contains('mode-portrait')) return;
+    var topleftEl = document.querySelector('.ev-topleft');
+    if (topleftEl) topleftEl.style.top = (frame.scrollTop + 12) + 'px';
+    var toprightEl = document.querySelector('.ev-topright');
+    if (toprightEl) toprightEl.style.top = (frame.scrollTop + 12) + 'px';
+
+    var handleEl = document.getElementById('resizeHandle');
+    if (handleEl) {
+      handleEl.style.bottom = 'auto';
+      handleEl.style.top = (frame.scrollTop + frame.clientHeight - handleEl.offsetHeight) + 'px';
+    }
+
+    var lnbEl = document.getElementById('evLnb');
+    if (lnbEl) {
+      lnbEl.style.top = frame.scrollTop + 'px';
+      lnbEl.style.bottom = 'auto';
+      lnbEl.style.height = frame.clientHeight + 'px';
+    }
+
+    document.querySelectorAll('.ev-popup.visible').forEach(function (popup) {
+      popup.style.top = frame.scrollTop + 'px';
+      popup.style.bottom = 'auto';
+      popup.style.height = frame.clientHeight + 'px';
+    });
+  });
+
+  function setActiveBtn(key) {
+    var btns = btnGroup.querySelectorAll('.device-btn');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle('is-active', btns[i].getAttribute('data-device') === key);
+    }
+  }
+
+  function setDevice(key) {
+    if (key === 'custom') {
+      frame.setAttribute('data-device', 'custom');
+      if (customCtrl) customCtrl.style.display = 'flex';
+      applyFrame(clampDim(customW.value, 280, 2560), clampDim(customH.value, 280, 1600));
+    } else {
+      var d = DEVICES[key];
+      if (!d) return;
+      frame.setAttribute('data-device', key);
+      if (customCtrl) customCtrl.style.display = 'none';
+      applyFrame(d.w, d.h);
+    }
+    setActiveBtn(key);
+  }
+
+  btnGroup.addEventListener('click', function (e) {
+    var btn = e.target.closest('.device-btn');
+    if (btn) setDevice(btn.getAttribute('data-device'));
+  });
+
+  /* 커스텀 너비/높이 입력 → 실시간 반영 (커스텀 모드일 때만) */
+  function onCustomInput() {
+    if (frame.getAttribute('data-device') === 'custom') {
+      applyFrame(clampDim(customW.value, 280, 2560), clampDim(customH.value, 280, 1600));
+    }
+  }
+  if (customW) customW.addEventListener('input', onCustomInput);
+  if (customH) customH.addEventListener('input', onCustomInput);
+
+  /* ── 마우스 드래그로 프레임 크기 조절 (우하단 핸들) ── */
+  var handle = document.getElementById('resizeHandle');
+  var resizing = false, startX = 0, startY = 0, startW = 0, startH = 0;
+
+  function enterCustom() {
+    if (frame.getAttribute('data-device') !== 'custom') {
+      frame.setAttribute('data-device', 'custom');
+      if (customCtrl) customCtrl.style.display = 'flex';
+      setActiveBtn('custom');
+    }
+  }
+  function onDragMove(e) {
+    if (!resizing) return;
+    /* 프레임은 가로 중앙정렬(폭 변화는 좌우로 → ×2) · 상단정렬(높이는 1:1) */
+    var w = clampDim(startW + (e.clientX - startX) * 2, 280, 2560);
+    var h = clampDim(startH + (e.clientY - startY), 280, 1600);
+    if (customW) customW.value = w;
+    if (customH) customH.value = h;
+    applyFrame(w, h);
+  }
+  function onDragEnd() {
+    if (!resizing) return;
+    resizing = false;
+    frame.classList.remove('is-resizing');
+    document.body.style.userSelect = '';
+  }
+  if (handle) {
+    handle.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      resizing = true;
+      startX = e.clientX; startY = e.clientY;
+      startW = frame.offsetWidth; startH = frame.offsetHeight;
+      enterCustom();
+      frame.classList.add('is-resizing');           /* 트랜지션 해제 → 즉시 반응 */
+      document.body.style.userSelect = 'none';
+    });
+    window.addEventListener('mousemove', onDragMove);
+    window.addEventListener('mouseup', onDragEnd);
+  }
+
+  /* ── 햄버거 LNB 드로어 (세로모드) ── */
+  var hamburger = document.getElementById('evHamburger');
+  var lnbClose  = document.getElementById('evLnbClose');
+  var dim       = document.getElementById('evDim');
+  if (hamburger) hamburger.addEventListener('click', function () {
+    frame.classList.add('lnb-open');
+    /* 세로 스크롤 중 열릴 때 현재 scrollTop 기준으로 즉시 고정 */
+    if (frame.classList.contains('mode-portrait')) {
+      var lnbEl = document.getElementById('evLnb');
+      if (lnbEl) {
+        lnbEl.style.top = frame.scrollTop + 'px';
+        lnbEl.style.bottom = 'auto';
+        lnbEl.style.height = frame.clientHeight + 'px';
+      }
+    }
+  });
+  if (lnbClose)  lnbClose.addEventListener('click',  function () { frame.classList.remove('lnb-open'); });
+  if (dim)       dim.addEventListener('click',       function () { frame.classList.remove('lnb-open'); });
+
+  /* ── 세로모드 더보기(⋯) → 액션 버튼 펼침 ── */
+  var moreBtn = document.getElementById('evMoreBtn');
+  if (moreBtn) moreBtn.addEventListener('click', function () {
+    if (headerActs) headerActs.classList.toggle('is-expanded');
+  });
+
+
+  /* ── 우측 패널 아코디언 (공통 토글) ── */
+  var accHeaders = document.querySelectorAll('.acc-header');
+  for (var j = 0; j < accHeaders.length; j++) {
+    accHeaders[j].addEventListener('click', function () {
+      var body = this.parentElement.querySelector('.acc-body');
+      var open = this.classList.toggle('is-open');
+      if (body) body.classList.toggle('is-hidden', !open);
+    });
+  }
+
+  /* ── 리워드 표기법 (이미지만 / 이미지+리워드명 / 이미지+리워드명+수량) ── */
+  (function () {
+    var checked = document.querySelector('input[name="reward-display"]:checked');
+    if (checked && checked.value !== 'imgonly') frame.classList.add('reward-' + checked.value);
+  })();
+  document.querySelectorAll('input[name="reward-display"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      frame.classList.remove('reward-imgcount', 'reward-imgtxt');
+      if (this.value !== 'imgonly') frame.classList.add('reward-' + this.value);
+    });
+  });
+
+  /* ── 미션 레이아웃 유형 (리스트형 / 카드형) ── */
+  var rewardDisplaySection = document.getElementById('rewardDisplaySection');
+  var rewardDisplayDivider = document.getElementById('rewardDisplayDivider');
+  var rewardTextColorRow   = document.getElementById('rewardTextColorRow');
+
+  var scrollDirSection = document.getElementById('scrollDirSection');
+  var scrollDirDivider = document.getElementById('scrollDirDivider');
+  var uiPosSection     = document.getElementById('uiPosSection');
+  var uiPosDivider     = document.getElementById('uiPosDivider');
+  var alignSection     = document.getElementById('alignSection');
+  var alignDivider     = document.getElementById('alignDivider');
+
+  function applyScrollDir(isHorizontal) {
+    frame.classList.toggle('scroll-h', isHorizontal);
+    var hide = isHorizontal ? 'none' : '';
+    uiPosSection.style.display = hide;
+    uiPosDivider.style.display = hide;
+    alignSection.style.display = hide;
+    alignDivider.style.display = hide;
+    if (isHorizontal) {
+      var bottomRadio = document.querySelector('input[name="mission-uipos"][value="bottom"]');
+      if (bottomRadio) { bottomRadio.checked = true; }
+      frame.setAttribute('data-uipos', 'bottom');
+    }
+  }
+
+  function applyLayoutType(isCard) {
+    frame.classList.toggle('layout-card', isCard);
+    var show = isCard ? '' : 'none';
+    rewardDisplaySection.style.display = show;
+    rewardDisplayDivider.style.display = show;
+    rewardTextColorRow.style.display   = show;
+    scrollDirSection.style.display     = show;
+    scrollDirDivider.style.display     = show;
+    if (!isCard) {
+      /* 리스트형 전환 시 마지막 옵션(imgonly)으로 초기화 */
+      var imgonlyRadio = document.querySelector('input[name="reward-display"][value="imgonly"]');
+      if (imgonlyRadio) { imgonlyRadio.checked = true; }
+      frame.classList.remove('reward-imgcount', 'reward-imgtxt');
+      /* 스크롤 방향 초기화 + 숨겼던 섹션 복원 */
+      var vertRadio = document.querySelector('input[name="card-scroll-dir"][value="vertical"]');
+      if (vertRadio) { vertRadio.checked = true; }
+      frame.classList.remove('scroll-h');
+      applyScrollDir(false);
+    }
+  }
+
+  /* 초기 상태 적용 */
+  (function () {
+    var checked = document.querySelector('input[name="mission-layout"]:checked');
+    applyLayoutType(checked && checked.value === 'card');
+  })();
+
+  document.querySelectorAll('input[name="mission-layout"]').forEach(function (r) {
+    r.addEventListener('change', function () { applyLayoutType(this.value === 'card'); });
+  });
+
+  document.querySelectorAll('input[name="card-scroll-dir"]').forEach(function (r) {
+    r.addEventListener('change', function () { applyScrollDir(this.value === 'horizontal'); });
+  });
+
+  /* 가로 스크롤: 마우스 드래그 */
+  var missionList = document.getElementById('evMissionList');
+  var isDragging = false, dragStartX = 0, dragScrollLeft = 0;
+  missionList.addEventListener('mousedown', function (e) {
+    if (!frame.classList.contains('scroll-h')) return;
+    isDragging = true;
+    dragStartX = e.pageX - missionList.offsetLeft;
+    dragScrollLeft = missionList.scrollLeft;
+    e.preventDefault();
+  });
+  document.addEventListener('mouseup', function () { isDragging = false; });
+  document.addEventListener('mousemove', function (e) {
+    if (!isDragging) return;
+    var x = e.pageX - missionList.offsetLeft;
+    missionList.scrollLeft = dragScrollLeft - (x - dragStartX);
+  });
+
+  /* ── 미션 UI 위치 (아래 / 왼쪽 / 오른쪽 — 반응형B 사이드 컬럼 전환) ── */
+  document.querySelectorAll('input[name="mission-uipos"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      frame.setAttribute('data-uipos', this.value);
+      /* uipos 변경 시에도 portrait top 즉시 재계산
+         frame.offsetWidth 는 transition 진행 중에 이전 값을 반환할 수 있으므로
+         인라인 style.width (applyFrame 이 명시적으로 설정한 값) 를 우선 사용 */
+      var isPortrait = frame.classList.contains('mode-portrait');
+      var w = parseInt(frame.style.width) || frame.offsetWidth;
+      applyUiPosTop(isPortrait, isPortrait && w < MIN_LAYOUT_W ? MIN_LAYOUT_W : w);
+    });
+  });
+
+  /* ════════════════════════════════════════════
+     공통 설정 패널 wiring
+  ════════════════════════════════════════════ */
+
+  /* ── 1) 기간 UI 설정 ── */
+  var eventRow        = document.getElementById('event-row');
+  var rewardRow       = document.getElementById('reward-row');
+  var eventPeriodText = document.getElementById('event-period-text');
+  var rewardPeriodTxt = document.getElementById('reward-period-text');
+  var evPeriod        = document.getElementById('evPeriod');
+  var resetInfo       = document.querySelector('.ev-reset-info');
+
+  function updatePeriodVisibility() {
+    var ep = document.querySelector('input[name="event-period"]:checked');
+    var rp = document.querySelector('input[name="reward-period"]:checked');
+    var bothNone = (ep && ep.value === 'none') && (rp && rp.value === 'none');
+    if (evPeriod) evPeriod.style.visibility = bothNone ? 'hidden' : '';
+  }
+  document.querySelectorAll('input[name="event-period"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      if (this.value === 'none') { eventRow.classList.add('hidden'); }
+      else if (this.value === 'timer') { eventRow.classList.remove('hidden'); eventPeriodText.textContent = '남은 시간 30일 23시간'; }
+      else { eventRow.classList.remove('hidden'); eventPeriodText.textContent = this.value; }
+      updatePeriodVisibility();
+    });
+  });
+  document.querySelectorAll('input[name="reward-period"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      if (this.value === 'none') { rewardRow.classList.add('hidden'); }
+      else if (this.value === 'timer') { rewardRow.classList.remove('hidden'); rewardPeriodTxt.textContent = '남은 시간 30일 23시간'; }
+      else { rewardRow.classList.remove('hidden'); rewardPeriodTxt.textContent = this.value; }
+      updatePeriodVisibility();
+    });
+  });
+  document.querySelectorAll('input[name="mission-reset"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      if (!resetInfo) return;
+      resetInfo.style.display = (this.value === 'none') ? 'none' : '';
+    });
+  });
+  /* ══ Gradient Color Picker 팩토리 ══ */
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.grd-picker')) {
+      document.querySelectorAll('.grd-panel.open').forEach(function (p) { p.classList.remove('open'); });
+    }
+  });
+
+  window.GradientPicker = function (wrapperId, initColor, onChange) {
+    var wrap = document.getElementById(wrapperId);
+    if (!wrap) return;
+    var trigger   = wrap.querySelector('.grd-trigger');
+    var panel     = wrap.querySelector('.grd-panel');
+    var swatch    = wrap.querySelector('.grd-swatch');
+    var hexLabel  = wrap.querySelector('.grd-hex');
+    var previewEl = wrap.querySelector('.grd-preview');
+    var stopsWrap = wrap.querySelector('.grd-stops');
+    var typeBtns  = wrap.querySelectorAll('.grd-type-btn');
+
+    /* 색상 추가 / 각도 행은 사용하지 않으므로 숨김 */
+    var addBtnEl   = wrap.querySelector('.grd-add-stop');
+    var angleRowEl = wrap.querySelector('.grd-angle-row');
+    if (addBtnEl)   addBtnEl.style.display   = 'none';
+    if (angleRowEl) angleRowEl.style.display = 'none';
+
+    var state = { type: 'solid',
+      stops: [{ color: initColor || '#000000', pos: 0, opacity: 100 }, { color: '#ffffff', pos: 100, opacity: 100 }] };
+
+    function toRgba(hex, opa) {
+      if (opa >= 100) return hex;
+      var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+      return 'rgba(' + r + ',' + g + ',' + b + ',' + (opa / 100).toFixed(2) + ')';
+    }
+
+    /* 기본: 색상 1개 / 그라데이션: 색상 2개 (위치 슬라이더 포함), 삭제 버튼 없음 */
+    function renderStops() {
+      stopsWrap.innerHTML = '';
+      var isSolid = state.type === 'solid';
+      var count = isSolid ? 1 : 2;
+      for (var i = 0; i < count; i++) {
+        (function (stop) {
+          var row = document.createElement('div'); row.className = 'grd-stop';
+
+          var ci = document.createElement('input'); ci.type = 'color'; ci.value = stop.color;
+          ci.addEventListener('input', function () { stop.color = this.value; update(); });
+          row.appendChild(ci);
+
+
+          var oi = document.createElement('input'); oi.type = 'number'; oi.min = 0; oi.max = 100; oi.value = stop.opacity;
+          oi.className = 'grd-stop-opa';
+          oi.addEventListener('input', function () { stop.opacity = Math.min(100, Math.max(0, +this.value || 0)); update(); });
+          var opaSuffix = document.createElement('span'); opaSuffix.className = 'grd-stop-opa-pct'; opaSuffix.textContent = '%';
+          row.appendChild(oi); row.appendChild(opaSuffix);
+
+          stopsWrap.appendChild(row);
+        })(state.stops[i]);
+      }
+    }
+
+    function buildCSS() {
+      var a = toRgba(state.stops[0].color, state.stops[0].opacity);
+      var b = toRgba(state.stops[1].color, state.stops[1].opacity);
+      var ap = state.stops[0].pos, bp = state.stops[1].pos;
+      if (state.type === 'solid')   return a;
+      if (state.type === 'linear')  return 'linear-gradient(to right, ' + a + ' ' + ap + '%, ' + b + ' ' + bp + '%)';
+      if (state.type === 'radial')  return 'radial-gradient(circle, '   + a + ' ' + ap + '%, ' + b + ' ' + bp + '%)';
+      if (state.type === 'conic')   return 'conic-gradient('            + a + ' ' + ap + '%, ' + b + ' ' + bp + '%)';
+      if (state.type === 'diamond') return 'conic-gradient(at 50% 50%, '
+        + a + ' 0%, ' + b + ' 25%, ' + a + ' 50%, ' + b + ' 75%, ' + a + ' 100%)';
+      return a;
+    }
+
+    var TYPE_LABEL = { linear: '선형', radial: '방사형', conic: '각도형', diamond: '다이아' };
+    function update(silent) {
+      var css = buildCSS();
+      swatch.style.background = css;
+      if (previewEl) previewEl.style.background = css;
+      hexLabel.textContent = state.type === 'solid'
+        ? state.stops[0].color.replace('#', '').toUpperCase()
+        : TYPE_LABEL[state.type];
+      if (!silent && onChange) onChange(css);
+    }
+
+    typeBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        typeBtns.forEach(function (b) { b.classList.remove('is-active'); });
+        this.classList.add('is-active');
+        state.type = this.getAttribute('data-type');
+        renderStops(); update();
+      });
+    });
+
+    trigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var wasOpen = panel.classList.contains('open');
+      document.querySelectorAll('.grd-panel.open').forEach(function (p) { p.classList.remove('open'); });
+      if (!wasOpen) {
+        var r = trigger.getBoundingClientRect();
+        panel.style.top   = (r.bottom + 4) + 'px';
+        panel.style.right = (window.innerWidth - r.right) + 'px';
+        panel.classList.add('open');
+      }
+    });
+
+    renderStops();
+    update(true);
+  };
+
+  /* ── 2) 배경(키비주얼) 설정 ── */
+  var pending = {};
+
+  function initUploadBox(box) {
+    if (box.hasAttribute('data-upload-init')) return;
+    box.setAttribute('data-upload-init', '1');
+    var input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*'; input.style.display = 'none';
+    document.body.appendChild(input);
+    box.addEventListener('click', function (e) {
+      if (e.target.closest('.upload-remove')) {
+        e.stopPropagation();
+        box.classList.remove('has-image'); box.style.backgroundImage = '';
+        pending[box.dataset.upload] = 'reset';
+        return;
+      }
+      input.value = ''; input.click();
+    });
+    input.addEventListener('change', function () {
+      var f = input.files[0]; if (!f) return;
+      var reader = new FileReader();
+      reader.onload = function (ev) {
+        var url = ev.target.result;
+        box.classList.add('has-image'); box.style.backgroundImage = 'url(' + url + ')';
+        pending[box.dataset.upload] = url;
+      };
+      reader.readAsDataURL(f);
+    });
+  }
+  document.querySelectorAll('.upload-box').forEach(initUploadBox);
+
+  var cfgOverlays = {
+    bg: document.getElementById('bgPopupOverlay'),
+    reward: document.getElementById('rewardPopupOverlay'),
+    lnb: document.getElementById('lnbPopupOverlay'),
+    funcadd: document.getElementById('funcAddOverlay'),
+    funcNotice: document.getElementById('funcNoticeOverlay'),
+    funcClaim: document.getElementById('funcClaimOverlay'),
+    funcCurrency: document.getElementById('funcCurrencyOverlay')
+  };
+  function openCfg(key) { if (cfgOverlays[key]) cfgOverlays[key].classList.add('visible'); }
+  function closeCfg(key) { if (cfgOverlays[key]) cfgOverlays[key].classList.remove('visible'); }
+  document.querySelectorAll('[data-cfgclose]').forEach(function (el) {
+    el.addEventListener('click', function () { closeCfg(this.getAttribute('data-cfgclose')); });
+  });
+  Object.keys(cfgOverlays).forEach(function (k) {
+    var ov = cfgOverlays[k];
+    if (ov) ov.addEventListener('click', function (e) { if (e.target === ov) closeCfg(k); });
+  });
+
+  document.getElementById('bgDetailOpenBtn').addEventListener('click', function () { openCfg('bg'); });
+  document.getElementById('bgPopupSaveBtn').addEventListener('click', function () {
+    var bgImage = document.querySelector('.ev-bg-image');
+    if (bgImage) {
+      if (pending['bg-kr'] === 'reset') { bgImage.style.background = ''; }
+      else if (pending['bg-kr']) { bgImage.style.background = 'url(' + pending['bg-kr'] + ') center/cover no-repeat'; }
+    }
+    closeCfg('bg');
+  });
+
+  /* ── 3) 보상 결과 팝업 설정 ── */
+  var rewardTextRow = document.getElementById('rewardTextColorRow');
+  var rewardBgRow   = document.getElementById('rewardBgColorRow');
+  function showRewardVariant(v) {
+    ['text','count','imageonly'].forEach(function (id) {
+      var el = document.getElementById('rwdVariant_' + id);
+      if (el) el.classList.toggle('active', id === v);
+    });
+    if (rewardTextRow) rewardTextRow.style.display = (v === 'imageonly') ? 'none' : '';
+    if (rewardBgRow)   rewardBgRow.style.display   = (v === 'text') ? 'none' : '';
+  }
+  document.querySelectorAll('input[name="reward-type"]').forEach(function (r) {
+    r.addEventListener('change', function () { showRewardVariant(this.value); });
+  });
+  /* ── Gradient Color Picker 초기화 ── */
+  GradientPicker('gp-periodBg', '#000000', function (css) {
+    if (evPeriod) evPeriod.style.background = css;
+  });
+  GradientPicker('gp-bg', '#d7dade', function (css) {
+    frame.style.setProperty('--event-bg-color', css);
+  });
+  GradientPicker('gp-rewardText', '#1a1a1a', function (css) {
+    document.querySelectorAll('.rwd-name, .rwd-count').forEach(function (el) {
+      if (/^#|^rgb/.test(css)) {
+        el.style.background = ''; el.style.webkitBackgroundClip = ''; el.style.webkitTextFillColor = '';
+        el.style.color = css;
+      } else {
+        el.style.color = ''; el.style.background = css;
+        el.style.webkitBackgroundClip = 'text'; el.style.webkitTextFillColor = 'transparent';
+      }
+    });
+  });
+  GradientPicker('gp-rewardBg', '#1a1a1a', function (css) {
+    document.querySelectorAll('.Common_Count').forEach(function (el) { el.style.background = css; });
+  });
+  GradientPicker('gp-missionText', '#1a1a1a', function (css) {
+    document.querySelectorAll('.ev-mb-title').forEach(function (el) {
+      if (/^#|^rgb/.test(css)) {
+        el.style.background = ''; el.style.webkitBackgroundClip = ''; el.style.webkitTextFillColor = '';
+        el.style.color = css;
+      } else {
+        el.style.color = ''; el.style.background = css;
+        el.style.webkitBackgroundClip = 'text'; el.style.webkitTextFillColor = 'transparent';
+      }
+    });
+  });
+  GradientPicker('gp-missionRewardText', '#333333', function (css) {
+    document.querySelectorAll('.ev-mb-reward-name, .ev-mb-reward-txt').forEach(function (el) { el.style.color = css; });
+  });
+  GradientPicker('gp-missionRewardBg', '#1a1a1a', function (css) {
+    document.querySelectorAll('.ev-mb-reward-qty').forEach(function (el) { el.style.background = css; });
+  });
+  GradientPicker('gp-missionCardBg', '#ffffff', function (css) {
+    document.querySelectorAll('.ev-mission-bar').forEach(function (el) { el.style.background = css; });
+  });
+  GradientPicker('gp-missionCardLine', '#000000', function (css) {
+    document.querySelectorAll('.ev-mission-bar').forEach(function (el) { el.style.borderColor = css; });
+  });
+  document.getElementById('rewardDetailOpenBtn').addEventListener('click', function () { openCfg('reward'); });
+  /* 세부팝업: 기본/이미지등록 라디오 → 미리보기·업로드 영역 토글 */
+  function toggleRewardDetailType() {
+    var bgCustom = (document.querySelector('input[name="popup-bg-type"]:checked') || {}).value === 'custom';
+    document.getElementById('popupBgPreview').style.display = bgCustom ? 'none' : 'flex';
+    document.getElementById('popupBgUploadArea').style.display = bgCustom ? 'flex' : 'none';
+    var btnCustom = (document.querySelector('input[name="confirm-btn-type"]:checked') || {}).value === 'custom';
+    document.getElementById('confirmBtnPreview').style.display = btnCustom ? 'none' : 'flex';
+    document.getElementById('confirmBtnUploadArea').style.display = btnCustom ? 'flex' : 'none';
+  }
+  document.querySelectorAll('input[name="popup-bg-type"], input[name="confirm-btn-type"]').forEach(function (r) {
+    r.addEventListener('change', toggleRewardDetailType);
+  });
+  document.getElementById('rewardPopupSaveBtn').addEventListener('click', function () {
+    var modal = document.querySelector('#Common_Popup_Reward .rwd-modal');
+    var bgCustom = (document.querySelector('input[name="popup-bg-type"]:checked') || {}).value === 'custom';
+    if (modal) {
+      if (bgCustom && pending['reward-bg'] && pending['reward-bg'] !== 'reset') {
+        modal.style.backgroundImage = 'url(' + pending['reward-bg'] + ')'; modal.style.backgroundSize = 'cover'; modal.style.backgroundPosition = 'center';
+      } else { modal.style.backgroundImage = ''; }
+    }
+    var confirmBtn = document.querySelector('#Common_Popup_Reward .rwd-modal-btn');
+    var btnCustom = (document.querySelector('input[name="confirm-btn-type"]:checked') || {}).value === 'custom';
+    if (confirmBtn) {
+      if (btnCustom && pending['confirm-kr'] && pending['confirm-kr'] !== 'reset') {
+        confirmBtn.style.background = 'url(' + pending['confirm-kr'] + ') center/cover no-repeat'; confirmBtn.textContent = '';
+      } else { confirmBtn.style.background = ''; confirmBtn.textContent = '확인'; }
+    }
+    closeCfg('reward');
+  });
+  var rewardChecked = document.querySelector('input[name="reward-type"]:checked');
+  if (rewardChecked) showRewardVariant(rewardChecked.value);   /* 초기 variant/색상행 동기화 */
+  var rewardPreviewBtn = document.getElementById('rewardPreviewBtn');
+  if (rewardPreviewBtn) rewardPreviewBtn.addEventListener('click', function () { openEvPopup('reward'); });
+
+  /* ── 4) 기능 버튼 추가 및 설정 ── */
+  function applyFuncButtons() {
+    ['notice','claim','currency'].forEach(function (fn) {
+      var chk = document.querySelector('input[data-addfn="' + fn + '"]');
+      var on = chk ? chk.checked : false;
+      var headerBtn = document.querySelector('.ev-action-btn[data-fn="' + fn + '"]');
+      if (headerBtn) headerBtn.style.display = on ? '' : 'none';
+      var listItem = document.querySelector('.funcbtn-item[data-fn="' + fn + '"]');
+      if (listItem) listItem.classList.toggle('is-hidden', !on);
+    });
+  }
+  document.getElementById('funcBtnAddOpenBtn').addEventListener('click', function () { openCfg('funcadd'); });
+  document.getElementById('funcAddSaveBtn').addEventListener('click', function () { applyFuncButtons(); closeCfg('funcadd'); });
+  var DETAIL_OV = { notice: 'funcNotice', claim: 'funcClaim', currency: 'funcCurrency' };
+  document.querySelectorAll('.panel-detail-btn[data-detail]').forEach(function (btn) {
+    btn.addEventListener('click', function () { openCfg(DETAIL_OV[this.getAttribute('data-detail')]); });
+  });
+  /* 세부 팝업 라디오(기본/이미지·이미지/텍스트) → data-when 영역 토글 */
+  document.querySelectorAll('.cfg-toggle-group').forEach(function (group) {
+    group.addEventListener('change', function (e) {
+      if (!e.target || e.target.type !== 'radio') return;
+      var scope = group.parentElement, val = e.target.value;
+      scope.querySelectorAll('[data-when]').forEach(function (el) {
+        el.style.display = (el.getAttribute('data-when') === val) ? '' : 'none';
+      });
+    });
+  });
+
+  /* ── 기능버튼 세부설정 저장 → 웹뷰 팝업 반영 ── */
+  function radioVal(name) { var r = document.querySelector('input[name="' + name + '"]:checked'); return r ? r.value : ''; }
+  function bgUrl(u) { return 'url(' + u + ') center/cover no-repeat'; }
+  function applyConfirmBtn(sel, typeName, pkey) {
+    var btn = document.querySelector(sel); if (!btn) return;
+    if (radioVal(typeName) === 'custom' && pending[pkey] && pending[pkey] !== 'reset') {
+      btn.style.background = bgUrl(pending[pkey]); btn.style.color = 'transparent'; btn.textContent = '';
+    } else { btn.style.background = '#1a1a1a'; btn.style.color = '#fff'; btn.textContent = '확인'; }
+  }
+  var noticeSave = document.getElementById('funcNoticeSave');
+  if (noticeSave) noticeSave.addEventListener('click', function () {
+    var body = document.getElementById('noticeBody');
+    if (body) {
+      if (radioVal('notice-bg-type') === 'text') {
+        var kr = document.querySelector('#funcNoticeOverlay [data-when="text"] .cfg-textarea');
+        body.className = 'ev-popup-notice'; body.style.background = '';
+        body.textContent = (kr && kr.value.trim()) ? kr.value : '등록된 내용이 없습니다.';
+      } else {
+        body.className = 'ev-popup-ph'; body.textContent = '';
+        if (pending['notice-bg-kr'] && pending['notice-bg-kr'] !== 'reset') { body.style.background = bgUrl(pending['notice-bg-kr']); }
+        else { body.style.background = ''; body.textContent = '등록된 이미지가 없습니다.'; }
+      }
+    }
+    applyConfirmBtn('#Common_Popup_Notice .ev-popup-confirm', 'notice-confirm-type', 'notice-confirm-kr');
+    closeCfg('funcNotice');
+  });
+  function saveTablePopup(fn, overlayKey, popupId) {
+    var content = document.querySelector('#' + popupId + ' .ev-popup-content');
+    if (content) {
+      if (radioVal(fn + '-table-bg') === 'custom' && pending[fn + '-table-bg'] && pending[fn + '-table-bg'] !== 'reset') { content.style.background = bgUrl(pending[fn + '-table-bg']); }
+      else { content.style.background = ''; }
+    }
+    closeCfg(overlayKey);
+  }
+  var claimSave = document.getElementById('funcClaimSave');
+  if (claimSave) claimSave.addEventListener('click', function () { saveTablePopup('claim', 'funcClaim', 'Common_Popup_ClaimHistory'); });
+  var currencySave = document.getElementById('funcCurrencySave');
+  if (currencySave) currencySave.addEventListener('click', function () { saveTablePopup('currency', 'funcCurrency', 'Common_Popup_Currency'); });
+
+  /* ── LNB 설정(배너) 저장 → 활성 LNB 항목 반영 ── */
+  var lnbOpenBtn = document.getElementById('lnbDetailOpenBtn');
+  if (lnbOpenBtn) lnbOpenBtn.addEventListener('click', function () { openCfg('lnb'); });
+  var lnbSave = document.getElementById('lnbPopupSaveBtn');
+  if (lnbSave) lnbSave.addEventListener('click', function () {
+    var active = document.querySelector('.ev-lnb-item[data-state="Active"]');
+    if (active) {
+      var p = active.querySelector('p');
+      if (radioVal('lnb-type') === 'image') {
+        if (pending['lnb-kr'] && pending['lnb-kr'] !== 'reset') { active.style.background = bgUrl(pending['lnb-kr']); if (p) p.style.display = 'none'; }
+        else { active.style.background = ''; if (p) p.style.display = ''; }
+      } else {
+        if (pending['lnb-imgtext-kr'] && pending['lnb-imgtext-kr'] !== 'reset') { active.style.background = bgUrl(pending['lnb-imgtext-kr']); }
+        var kr = document.getElementById('lnbKrTextInput');
+        if (p) { p.style.display = ''; if (kr && kr.value.trim()) p.textContent = kr.value; }
+      }
+    }
+    closeCfg('lnb');
+  });
+
+  /* ── 웹뷰 내부 팝업 열기/닫기 ── */
+  var EV_POPUPS = { reward: 'Common_Popup_Reward', notice: 'Common_Popup_Notice', claim: 'Common_Popup_ClaimHistory', currency: 'Common_Popup_Currency' };
+  function openEvPopup(key) {
+    var el = document.getElementById(EV_POPUPS[key]);
+    if (!el) return;
+    if (frame.classList.contains('mode-portrait')) {
+      el.style.top = frame.scrollTop + 'px';
+      el.style.bottom = 'auto';
+      el.style.height = frame.clientHeight + 'px';
+    }
+    el.classList.add('visible');
+  }
+  function closeEvPopup(key) {
+    var el = document.getElementById(EV_POPUPS[key]);
+    if (!el) return;
+    el.classList.remove('visible');
+    el.style.top = ''; el.style.bottom = ''; el.style.height = '';
+  }
+  document.querySelectorAll('[data-close]').forEach(function (el) {
+    el.addEventListener('click', function () { closeEvPopup(this.getAttribute('data-close')); });
+  });
+  document.querySelectorAll('.ev-action-btn[data-fn]').forEach(function (btn) {
+    btn.addEventListener('click', function () { openEvPopup(this.getAttribute('data-fn')); });
+  });
+  /* 미션 클레임 버튼(보상 받기) → 보상 결과 팝업 */
+  document.querySelectorAll('.ev-mb-claim[data-state="claimable"]').forEach(function (btn) {
+    btn.addEventListener('click', function () { openEvPopup('reward'); });
+  });
+
+  /* ── 기본 UI 세부설정 팝업 ── */
+  var uidOverlay = document.getElementById('uiSettingDetailOverlay');
+
+  document.getElementById('uiSettingDetailOpenBtn').addEventListener('click', function () {
+    uidOverlay.classList.add('visible');
+  });
+  function closeUidPopup() { uidOverlay.classList.remove('visible'); }
+  document.getElementById('uiSettingDetailCloseBtn').addEventListener('click', closeUidPopup);
+  document.getElementById('uiSettingDetailCancelBtn').addEventListener('click', closeUidPopup);
+  document.getElementById('uiSettingDetailSaveBtn').addEventListener('click', closeUidPopup);
+  uidOverlay.addEventListener('click', function (e) { if (e.target === uidOverlay) closeUidPopup(); });
+
+  /* 탭 전환 */
+  var uidTabs = [
+    { btn: document.getElementById('uidTabMission'), panel: document.getElementById('uidPanelMission') },
+    { btn: document.getElementById('uidTabReward'),  panel: document.getElementById('uidPanelReward') }
+  ];
+  uidTabs.forEach(function (t, i) {
+    t.btn.addEventListener('click', function () {
+      uidTabs.forEach(function (x) {
+        x.btn.classList.toggle('active', x === t);
+        x.panel.classList.toggle('hidden', x !== t);
+      });
+    });
+  });
+
+  /* 보상받기 버튼 유형 토글 */
+  var uidBtnSplit  = document.getElementById('uidBtnTypeSplit');
+  var uidBtnMerged = document.getElementById('uidBtnTypeMerged');
+  var uidClaimSection = document.getElementById('uidClaimBtnSection');
+  function setUidBtnType(isSplit) {
+    uidBtnSplit.setAttribute('data-active', isSplit ? 'true' : 'false');
+    uidBtnMerged.setAttribute('data-active', isSplit ? 'false' : 'true');
+    if (uidClaimSection) uidClaimSection.style.display = isSplit ? '' : 'none';
+  }
+  uidBtnSplit.addEventListener('click',  function () { setUidBtnType(true); });
+  uidBtnMerged.addEventListener('click', function () { setUidBtnType(false); });
+
+  /* 미션 배경 유형 (공통/상태별) */
+  document.querySelectorAll('input[name="uid-mission-bg-type"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      var isState = this.value === 'state';
+      document.getElementById('uidBgBodyCommon').classList.toggle('hidden', isState);
+      document.getElementById('uidBgBodyState').classList.toggle('hidden', !isState);
+    });
+  });
+
+  /* 강조 미션 배경 사용/미사용 */
+  document.querySelectorAll('input[name="uid-highlight-use"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      document.getElementById('uidHighlightBody').classList.toggle('hidden', this.value === 'off');
+    });
+  });
+
+  /* 리워드 수령 버튼 — 이미지만/이미지+텍스트 */
+  document.querySelectorAll('input[name="uid-claim-btn-input"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      var isImageText = this.value === 'imagetext';
+      document.getElementById('uidClaimBodyImageOnly').classList.toggle('hidden', isImageText);
+      document.getElementById('uidClaimBodyImageText').classList.toggle('hidden', !isImageText);
+    });
+  });
+
+  /* 일괄 수령 버튼 유형 */
+  document.querySelectorAll('input[name="uid-batch-claim-type"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      document.getElementById('uidBatchBodyImageOnly').classList.toggle('hidden', this.value !== 'imageonly');
+      document.getElementById('uidBatchBodyImageText').classList.toggle('hidden', this.value !== 'imagetext');
+    });
+  });
+
+  /* 수령 완료 표기 사용/미사용 */
+  document.querySelectorAll('input[name="uid-claimed-display"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      document.getElementById('uidClaimedBody').classList.toggle('hidden', this.value === 'off');
+    });
+  });
+  document.getElementById('uidClaimedLangCheck').addEventListener('change', function () {
+    document.getElementById('uidClaimedUploadSingle').style.display = this.checked ? 'none' : '';
+    document.getElementById('uidClaimedUploadLang').style.display   = this.checked ? '' : 'none';
+  });
+
+  /* 수령 불가 표기 사용/미사용 */
+  document.querySelectorAll('input[name="uid-locked-display"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      document.getElementById('uidLockedBody').classList.toggle('hidden', this.value === 'off');
+    });
+  });
+  document.getElementById('uidLockedLangCheck').addEventListener('change', function () {
+    document.getElementById('uidLockedUploadSingle').style.display = this.checked ? 'none' : '';
+    document.getElementById('uidLockedUploadLang').style.display   = this.checked ? '' : 'none';
+  });
+
+  /* 초기 디바이스 = PC */
+  setDevice('pc');
+});
+</script>
+</body>
+</html>

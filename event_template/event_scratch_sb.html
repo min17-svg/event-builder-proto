@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>스크래치 이벤트(복권 긁기) - 이벤트 빌더 화면설계서</title>
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
+  :root {
+    --primary: #0066cc; --primary-focus: #0071e3; --primary-dk: #2997ff;
+    --canvas: #ffffff; --parchment: #f5f5f7; --pearl: #fafafc;
+    --ink: #1d1d1f; --ink80: #333333; --ink48: #7a7a7a; --muted: #cccccc;
+    --divider: #f0f0f0; --hairline: #e0e0e0; --chip: #d2d2d7;
+    --info-bg: #e6f1fb; --info-text: #0c447c; --info-border: rgba(0,102,204,0.3);
+    --warn-bg: #faeeda; --warn-text: #633806; --warn-border: rgba(186,117,23,0.3);
+    --radius-xs: 5px; --radius-sm: 8px; --radius-md: 11px;
+    --radius-lg: 18px; --radius-pill: 9999px;
+    --bg: var(--canvas); --bg2: var(--parchment); --bg3: var(--pearl);
+    --text: var(--ink); --text2: var(--ink48); --text3: var(--muted);
+    --border: var(--hairline); --border2: var(--chip);
+    --radius: var(--radius-sm);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --canvas: #1e1e1c; --parchment: #2a2a27; --pearl: #333330;
+      --ink: #e8e6de; --ink48: #9c9a92; --muted: #6b6a65;
+      --hairline: rgba(255,255,255,0.1); --chip: rgba(255,255,255,0.2);
+      --divider: rgba(255,255,255,0.08);
+      --info-bg: #0c2d4a; --info-text: var(--primary-dk);
+      --info-border: rgba(41,151,255,0.3);
+      --warn-bg: #2d1f00; --warn-text: #fac775;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Pretendard', system-ui, -apple-system, sans-serif;
+    font-size: 13px; color: var(--text); background: var(--bg);
+    display: flex; flex-direction: column;
+  }
+
+  /* 브레드크럼 */
+  .breadcrumb {
+    padding: 11px 18px; font-size: 11px; color: var(--text2);
+    border-bottom: 0.5px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .breadcrumb a { color: var(--info-text); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+  .bc-sep { color: var(--text3); }
+
+  /* 메인 레이아웃 */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* 좌측: iframe 패널 */
+  .screen-panel {
+    border-right: 0.5px solid var(--border);
+    padding: 16px;
+    background: var(--bg2);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+  }
+  .screen-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .screen-panel-title {
+    font-size: 11px; color: var(--text2); font-weight: 500;
+  }
+  .screen-panel-hint {
+    font-size: 10px; color: var(--text3);
+  }
+  .proto-frame {
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: #18181a;
+    width: 100%;
+    flex: 1;
+  }
+  .proto-frame iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+  }
+
+  /* 우측: 설명 패널 */
+  .desc-panel {
+    background: var(--bg);
+    padding: 16px 14px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .desc-panel-title {
+    font-size: 12px; font-weight: 600; color: var(--text);
+    margin-bottom: 14px; padding-bottom: 10px;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  /* 섹션 헤더 (그룹 구분) */
+  .desc-group-header {
+    font-size: 10px; font-weight: 600;
+    color: var(--text2);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 10px 4px 6px;
+    margin-top: 6px;
+    border-top: 0.5px solid var(--divider);
+  }
+  .desc-group-header:first-of-type { margin-top: 0; border-top: none; }
+
+  /* 기능 목록 아이템 */
+  .desc-list-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: var(--radius);
+    cursor: pointer; transition: background 0.12s;
+    border: 0.5px solid transparent;
+    margin-bottom: 2px;
+  }
+  .desc-list-item:hover { background: var(--bg2); border-color: var(--border); }
+  .desc-list-item.active { background: var(--info-bg); border-color: var(--info-border); }
+  .desc-list-num {
+    font-size: 10px; font-weight: 600; color: var(--info-text);
+    min-width: 42px; font-family: 'SF Mono', 'Consolas', monospace;
+  }
+  .desc-list-name { font-size: 12px; color: var(--text); flex: 1; line-height: 1.4; }
+  .desc-list-arrow {
+    font-size: 11px; color: var(--text3);
+    transition: transform 0.15s; flex-shrink: 0;
+  }
+  .desc-list-item.active .desc-list-arrow { transform: rotate(90deg); }
+
+  /* 기능 상세 */
+  .desc-detail {
+    display: none; margin: 0 0 6px 0; padding: 12px 13px;
+    background: var(--bg2); border-radius: var(--radius);
+    border: 0.5px solid var(--border);
+    border-left: 2.5px solid var(--info-border);
+  }
+  .desc-detail.active { display: block; }
+  .desc-id {
+    font-size: 10px; font-weight: 600; color: var(--info-text);
+    font-family: 'SF Mono', 'Consolas', monospace;
+    margin-bottom: 3px;
+  }
+  .desc-name { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+  .desc-body { font-size: 12px; color: var(--text2); line-height: 1.75; }
+  .desc-body ul { padding-left: 16px; margin-top: 4px; }
+  .desc-body li { margin-bottom: 3px; }
+
+  /* 태그 뱃지 */
+  .tag {
+    display: inline-block; font-size: 10px; padding: 1px 7px;
+    border-radius: 100px; margin: 0 3px 8px 0;
+    font-weight: 500;
+  }
+  .tag-view { background: var(--bg3); color: var(--text2); border: 0.5px solid var(--border2); }
+  .tag-edit { background: var(--info-bg); color: var(--info-text); }
+  .tag-ui { background: var(--warn-bg); color: var(--warn-text); }
+  .tag-popup { background: #f0e6fb; color: #5c1d8c; }
+
+  /* info/warn 블록 */
+  .info-block {
+    margin-top: 10px; padding: 9px 11px; border-radius: var(--radius);
+    font-size: 11px; background: var(--info-bg);
+    color: var(--info-text); line-height: 1.7;
+    border: 0.5px solid var(--info-border);
+  }
+  .warn-block {
+    margin-top: 10px; padding: 9px 11px; border-radius: var(--radius);
+    font-size: 11px; background: var(--warn-bg);
+    color: var(--warn-text); line-height: 1.7;
+    border: 0.5px solid var(--warn-border);
+  }
+  .block-title { font-weight: 600; display: block; margin-bottom: 4px; }
+
+  /* 구분선 */
+  hr.sep { border: none; border-top: 0.5px solid var(--divider); margin: 10px 0; }
+</style>
+</head>
+<body>
+
+<!-- 브레드크럼 -->
+<div class="breadcrumb">
+  <a href="../../index.html">이벤트 빌더</a>
+  <span class="bc-sep">›</span>
+  <span>이벤트 템플릿</span>
+  <span class="bc-sep">›</span>
+  <strong>스크래치 이벤트 (복권 긁기)</strong>
+</div>
+
+<div class="layout">
+
+  <!-- 좌측: proto iframe -->
+  <div class="screen-panel">
+    <div class="screen-panel-header">
+      <span class="screen-panel-title">이벤트 템플릿 &gt; 스크래치 이벤트 (복권 긁기) — 인터랙티브 목업</span>
+      <span class="screen-panel-hint">우측 기능 ID 클릭 시 해당 요소 강조 / 팝업 오픈</span>
+    </div>
+    <div class="proto-frame">
+      <iframe id="protoFrame"
+              src="event_scratch_proto.html"
+              title="스크래치 이벤트 proto"
+              allowfullscreen></iframe>
+    </div>
+  </div>
+
+  <!-- 우측: 기능 설명 패널 -->
+  <div class="desc-panel">
+    <div class="desc-panel-title">기능 설명</div>
+
+    <!-- ─── 그룹 1: 유저 화면 (웹뷰) ─── -->
+    <div class="desc-group-header">유저 화면 (웹뷰)</div>
+
+    <!-- F-02 -->
+    <div class="desc-list-item" id="list-F-02"
+         onclick="activate('F-02')"
+         onmouseenter="spot('F-02')" onmouseleave="unspot()">
+      <span class="desc-list-num">F-02</span>
+      <span class="desc-list-name">스크래치 카드 표시</span>
+      <span class="desc-list-arrow">›</span>
+    </div>
+    <div class="desc-detail" id="desc-F-02">
+      <div class="desc-id">F-02</div>
+      <div class="desc-name">스크래치 카드 표시</div>
+      <span class="tag tag-view">조회</span><span class="tag tag-ui">Canvas</span>
+      <div class="desc-body">
+        이벤트 페이지 진입 시 스크래치 카드(복권)를 표시한다.<br>
+        <ul>
+          <li>카드 앞면에는 UI 설정(UI-01)에서 업로드한 커버 이미지가 표시된다.</li>
+          <li>커버 이미지 미설정 시 기본 이미지(이벤트 빌더 기본 이미지) 사용.</li>
+          <li>카드 크기: 좌우 여백을 제외한 전체 너비 기준으로 비율 유지.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- F-08 -->
+    <div class="desc-list-item" id="list-F-08"
+         onclick="activate('F-08')"
+         onmouseenter="spot('F-08')" onmouseleave="unspot()">
+      <span class="desc-list-num">F-08</span>
+      <span class="desc-list-name">스크래치 인터랙션</span>
+      <span class="desc-list-arrow">›</span>
+    </div>
+    <div class="desc-detail" id="desc-F-08">
+      <div class="desc-id">F-08</div>
+      <div class="desc-name">스크래치 인터랙션</div>
+      <span class="tag tag-edit">동작</span><span class="tag tag-ui">Canvas</span>
+      <div class="desc-body">
+        유저가 카드 위를 드래그(PC: 마우스, 모바일: 터치)하면 캔버스 영역이 지워지며 아래 결과 이미지가 드러난다.<br>
+        <ul>
+          <li>긁힌 비율이 임계값(기본 60%) 이상이 되면 스크래치 완료 자동 처리.</li>
+          <li>완료 시 남은 커버 영역을 애니메이션으로 전부 지우고 보상 팝업(F-05)을 표시.</li>
+          <li>PC 마우스 드래그 / 모바일 터치 드래그 모두 지원.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- F-05 -->
+    <div class="desc-list-item" id="list-F-05"
+         onclick="activate('F-05')"
+         onmouseenter="spot('F-05')" onmouseleave="unspot()">
+      <span class="desc-list-num">F-05</span>
+      <span class="desc-list-name">보상 획득 팝업</span>
+      <span class="desc-list-arrow">›</span>
+    </div>
+    <div class="desc-detail" id="desc-F-05">
+      <div class="desc-id">F-05</div>
+      <div class="desc-name">보상 획득 팝업</div>
+      <span class="tag tag-view">조회</span><span class="tag tag-popup">팝업</span>
+      <div class="desc-body">
+        스크래치 완료(F-08) 시 결과를 알리는 팝업을 표시한다.<br>
+        <ul>
+          <li>팝업에는 보상 이미지, 보상명, 수량이 표시된다.</li>
+          <li>꽝(미당첨)인 경우 별도 안내 이미지 표시.</li>
+          <li>[확인] 버튼 클릭 시 팝업 닫힘.</li>
+          <li>꽝 연출이 설정된 경우(UI-05), 팝업 배경에 안내 이미지 적용.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- F-03 -->
+    <div class="desc-list-item" id="list-F-03"
+         onclick="activate('F-03')"
+         onmouseenter="spot('F-03')" onmouseleave="unspot()">
+      <span class="desc-list-num">F-03</span>
+      <span class="desc-list-name">참여 대기 안내 (딤 오버레이)</span>
+      <span class="desc-list-arrow">›</span>
+    </div>
+    <div class="desc-detail" id="desc-F-03">
+      <div class="desc-id">F-03</div>
+      <div class="desc-name">참여 대기 안내 (딤 오버레이)</div>
+      <span class="tag tag-view">조회</span>
+      <div class="desc-body">
+        참여 불가 상태일 때 스크래치 카드 위에 딤(dim) 오버레이를 표시하여 대기 상태를 안내한다.<br>
+        <ul>
+          <li>딤 위에 대기 메시지(F-06)와 카운트다운(F-04)이 표시된다.</li>
+          <li>딤 상태에서는 스크래치 불가 (캔버스 터치/마우스 이벤트 차단).</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- F-06 -->
+    <div class="desc-list-item" id="list-F-06"
+         onclick="activate('F-06')"
+         onmouseenter="spot('F-06')" onmouseleave="unspot()">
+      <span class="desc-list-num">F-06</span>
+      <span class="desc-list-name">참여 대기 메시지</span>
+      <span class="desc-list-arrow">›</span>
+    </div>
+    <div class="desc-detail" id="desc-F-06">
+      <div class="desc-id">F-06</div>
+      <div class="desc-name">참여 대기 메시지</div>
+      <span class="tag tag-view">조회</span>
+      <div class="desc-body">
+        딤 오버레이(F-03) 위에 유저에게 표시되는 대기 안내 문구.<br>
+        <ul>
+          <li>UI 설정(UI-02)에서 입력한 텍스트를 그대로 사용한다.</li>
+          <li>미설정 시 기본 문구 표시.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- F-04 -->
+    <div class="desc-list-item" id="list-F-04"
+         onclick="activate('F-04')"
+         onmouseenter="spot('F-04')" onmouseleave="unspot()">
+      <span class="desc-list-num">F-04</span>
+      <span class="desc-list-name">참여 가능 카운트다운</span>
+      <span class="desc-list-arrow">›</span>
+    </div>
+    <div class="desc-detail" id="desc-F-04">
+      <div class="desc-id">F-04</div>
+      <div class="desc-name">참여 가능 카운트다운</div>
+      <span class="tag tag-view">조회</span>
+      <div class="desc-body">
+        딤 오버레이(F-03) 내부에 다음 참여 가능 시각까지 남은 시간을 카운트다운으로 표시한다.<br>
+        <ul>
+          <li>형식: <code>HH:MM:SS</code></li>
+          <li>카운트다운이 0이 되면 딤이 자동 해제되고 스크래치 가능 상태로 전환.</li>
+          <li>UI 설정(UI-03)에서 카운트다운 노출 여부를 ON/OFF 할 수 있다.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- F-09 -->
+    <div class="desc-list-item" id="list-F-09"
+         onclick="activate('F-09')"
+         onmouseenter="spot('F-09')" onmouseleave="unspot()">
+      <span class="desc-list-num">F-09</span>
+      <span class="desc-list-name">당첨 확률 표시 영역</span>
+      <span class="desc-list-arrow">›</span>
+    </div>
+    <div class="desc-detail" id="desc-F-09">
+      <div class="desc-id">F-09</div>
+      <div class="desc-name">당첨 확률 표시 영역</div>
+      <span class="tag tag-view">조회</span>
+      <div class="desc-body">
+        스크래치 카드 하단에 보상 등급별 아이템명과 당첨 확률을 목록으로 표시하는 영역.<br>
+        <ul>
+          <li>UI 설정(UI-04)에서 확률 노출을 OFF하면 이 영역 전체가 숨겨진다.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- F-10 -->
+    <div class="desc-list-item" id="list-F-10"
+         onclick="activate('F-10')"
+         onmouseenter="spot('F-10')" onmouseleave="unspot()">
+      <span class="desc-list-num">F-10</span>
+      <span class="desc-list-name">당첨 확률 안내 아이콘 (ⓘ)</span>
+      <span class="desc-list-arrow">›</span>
+    </div>
+    <div class="desc-detail" id="desc-F-10">
+      <div class="desc-id">F-10</div>
+      <div class="desc-name">당첨 확률 안내 아이콘 (ⓘ)</div>
+      <span class="tag tag-view">조회</span>
+      <div class="desc-body">
+        확률 표시 영역 옆에 위치하는 ⓘ 아이콘.<br>
+        <ul>
+          <li>탭하면 당첨 확률 고지 안내(툴팁/시트)가 표시된다.</li>
+          <li>UI 설정(UI-04)에서 확률 노출을 OFF하면 이 아이콘도 함께 숨겨진다.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ─── 그룹 2: 기본 UI 설정 팝업 ─── -->
+    <div class="desc-group-header">기본 UI 설정 팝업</div>
+
+    <!-- UI-01 -->
+    <div class="desc-list-item" id="list-UI-01"
+         onclick="activate('UI-01')"
+         onmouseenter="spot('UI-01')" onmouseleave="unspot()">
+      <span class="desc-list-num">UI-01</span>
+      <span class="desc-list-name">커버 이미지 (단일)</span>
+      <span class="desc-list-arrow">›</span>
+    </div>
+    <div class="desc-detail" id="desc-UI-01">
+      <div class="desc-id">UI-01</div>
+      <div class="desc-name">커버 이미지 (단일)</div>
+      <span class="tag tag-edit">수정</span><span class="tag tag-ui">이미지 업로드</span>
+      <div class="desc-body">
+        스크래치 카드 앞면에 표시될 커버 이미지를 업로드하는 설정 항목.<br>
+        <ul>
+          <li>단일 이미지 업로드(PNG/JPG/GIF 등).</li>
+          <li>권장 해상도 및 파일 크기 제한 안내 포함.</li>
+          <li>업로드된 이미지는 스크래치 카드 커버 레이어에 적용된다(F-02 연동).</li>
+          <li>미업로드 시 기본 커버 이미지(회색 그라데이션)가 자동 적용.</li>
+          <li>이미지 권장 규격은 디자이너 확정 후 별도 안내.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- UI-02 -->
+    <div class="desc-list-item" id="list-UI-02"
+         onclick="activate('UI-02')"
+         onmouseenter="spot('UI-02')" onmouseleave="unspot()">
+      <span class="desc-list-num">UI-02</span>
+      <span class="desc-list-name">대기 메시지 입력</span>
+      <span class="desc-list-arrow">›</span>
+    </div>
+    <div class="desc-detail" id="desc-UI-02">
+      <div class="desc-id">UI-02</div>
+      <div class="desc-name">대기 메시지 입력</div>
+      <span class="tag tag-edit">수정</span><span class="tag tag-ui">텍스트 입력</span>
+      <div class="desc-body">
+        참여 대기 딤(F-03) 위에 표시될 안내 문구를 어드민이 직접 입력하는 필드.<br>
+        <ul>
+          <li>텍스트 입력 필드 (최대 글자 수 제한 있음, 초과 시 입력 불가 또는 경고 표시).</li>
+          <li>줄바꿈 지원 여부는 별도 확인 필요.</li>
+          <li>미입력 시 서비스 기본 문구 사용 (예: "내일 다시 도전하세요!").</li>
+          <li>입력한 텍스트는 F-06(참여 대기 메시지)에 실시간 반영.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- UI-03 -->
+    <div class="desc-list-item" id="list-UI-03"
+         onclick="activate('UI-03')"
+         onmouseenter="spot('UI-03')" onmouseleave="unspot()">
+      <span class="desc-list-num">UI-03</span>
+      <span class="desc-list-name">대기 카운트다운 노출 여부</span>
+      <span class="desc-list-arrow">›</span>
+    </div>
+    <div class="desc-detail" id="desc-UI-03">
+      <div class="desc-id">UI-03</div>
+      <div class="desc-name">대기 카운트다운 노출 여부</div>
+      <span class="tag tag-edit">수정</span><span class="tag tag-ui">토글</span>
+      <div class="desc-body">
+        딤 오버레이(F-03) 위에 카운트다운(F-04)을 표시할지 여부를 설정하는 토글.<br>
+        <ul>
+          <li>ON: 다음 참여 가능 시각까지 남은 시간을 <code>HH:MM:SS</code> 형식으로 표시.</li>
+          <li>OFF: 카운트다운 숨김. 대기 메시지(UI-02)만 표시.</li>
+          <li>기본값: ON.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- UI-04 -->
+    <div class="desc-list-item" id="list-UI-04"
+         onclick="activate('UI-04')"
+         onmouseenter="spot('UI-04')" onmouseleave="unspot()">
+      <span class="desc-list-num">UI-04</span>
+      <span class="desc-list-name">당첨 확률 노출 여부</span>
+      <span class="desc-list-arrow">›</span>
+    </div>
+    <div class="desc-detail" id="desc-UI-04">
+      <div class="desc-id">UI-04</div>
+      <div class="desc-name">당첨 확률 노출 여부</div>
+      <span class="tag tag-edit">수정</span><span class="tag tag-ui">토글</span>
+      <div class="desc-body">
+        유저 화면(웹뷰)에서 당첨 확률 목록(F-09) 및 ⓘ 아이콘(F-10)을 표시할지 여부를 설정하는 토글.<br>
+        <ul>
+          <li>노출: 카드 하단에 보상 등급별 확률표와 ⓘ 아이콘 표시.</li>
+          <li>미노출: 확률표와 ⓘ 아이콘 모두 숨김.</li>
+          <li>기본값: 미노출.</li>
+        </ul>
+        <div class="warn-block">
+          <span class="block-title">⚠ 주의</span>
+          확률형 아이템 법적 공시 의무 이벤트의 경우 OFF 처리 시 법무 검토 필요.
+        </div>
+      </div>
+    </div>
+
+    <!-- UI-05 -->
+    <div class="desc-list-item" id="list-UI-05"
+         onclick="activate('UI-05')"
+         onmouseenter="spot('UI-05')" onmouseleave="unspot()">
+      <span class="desc-list-num">UI-05</span>
+      <span class="desc-list-name">꽝 연출 이미지 설정</span>
+      <span class="desc-list-arrow">›</span>
+    </div>
+    <div class="desc-detail" id="desc-UI-05">
+      <div class="desc-id">UI-05</div>
+      <div class="desc-name">꽝 연출 이미지 설정</div>
+      <span class="tag tag-edit">수정</span><span class="tag tag-ui">토글 + 이미지</span>
+      <div class="desc-body">
+        최상위 등급 보상(꽝)에 연출 이미지를 설정하는 항목.<br>
+        <ul>
+          <li>미션&리워드 설정단계에서 꽝이 추가될 경우 해당 항목 노출</li>
+          <li>꽝 전용 이미지를 별도 업로드할 수 있다. 미업로드 시 기본 이미지 표시(이벤트 빌더 공용)</li>
+          <li>꽝 결과 이미지는 스크래치 영역 및 보상 획득 팝업에 노출됩니다.</li>
+          <li>언어별 이미지 등록 지원</li>
+        </ul>
+      </div>
+    </div>
+
+  </div><!-- /desc-panel -->
+</div><!-- /layout -->
+
+<script>
+var IFRAME_MAP = {
+  'F-02': { popup: null, sel: '.scratch-card' },
+  'F-03': { popup: null, sel: '#scratchDim' },
+  'F-04': { popup: null, sel: '#scratchDimCount' },
+  'F-05': { popup: 'Common_Popup_Reward', sel: '#Common_Popup_Reward' },
+  'F-06': { popup: null, sel: null },
+  'F-08': { popup: null, sel: '.scratch-canvas' },
+  'F-09': { popup: null, sel: null },
+  'F-10': { popup: null, sel: '#scratchInfoIco' },
+  'UI-01': { popup: 'uiSettingPopupOverlay', sel: '#uiCoverSingle' },
+  'UI-02': { popup: 'uiSettingPopupOverlay', sel: '#uiWaitMsgInput' },
+  'UI-03': { popup: 'uiSettingPopupOverlay', sel: '#uiWaitCountdownToggle' },
+  'UI-04': { popup: 'uiSettingPopupOverlay', sel: '#uiProbSub' },
+  'UI-05': { popup: 'uiSettingPopupOverlay', sel: '#uiGwangSection' }
+};
+
+var frame = document.getElementById('protoFrame');
+var hlTimer = null;
+
+function postToProto(msg) {
+  try { frame.contentWindow.postMessage(msg, '*'); } catch(e) {}
+}
+
+function syncIframe(id, isHover) {
+  var mapping = IFRAME_MAP[id];
+  if (!mapping) return;
+  if (hlTimer) { clearTimeout(hlTimer); hlTimer = null; }
+  postToProto({ type: 'spec-unhighlight' });
+
+  if (isHover) {
+    if (mapping.popup === 'uiSettingPopupOverlay') {
+      postToProto({ type: 'spec-highlight', sel: '.Template_UISetting', scroll: false });
+    } else if (mapping.sel) {
+      postToProto({ type: 'spec-highlight', sel: mapping.sel, scroll: false });
+    }
+    return;
+  }
+
+  postToProto({ type: 'spec-close-popup' });
+
+  if (!mapping.sel && !mapping.popup) return;
+
+  if (mapping.popup) {
+    postToProto({ type: 'spec-open-popup', popup: mapping.popup, sel: mapping.sel });
+  } else {
+    postToProto({ type: 'spec-highlight', sel: mapping.sel, scroll: true });
+    hlTimer = setTimeout(function() {
+      postToProto({ type: 'spec-unhighlight' });
+    }, 2200);
+  }
+}
+
+function activate(id) {
+  document.querySelectorAll('.desc-list-item').forEach(function(i) { i.classList.remove('active'); });
+  var listItem = document.getElementById('list-' + id);
+  if (listItem) listItem.classList.add('active');
+
+  var detail = document.getElementById('desc-' + id);
+  var isOpen = detail && detail.classList.contains('active');
+  document.querySelectorAll('.desc-detail').forEach(function(d) { d.classList.remove('active'); });
+  if (detail && !isOpen) {
+    detail.classList.add('active');
+    if (listItem) listItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  if (isOpen && listItem) listItem.classList.remove('active');
+
+  syncIframe(id, false);
+}
+
+function spot(id) { syncIframe(id, true); }
+function unspot() { postToProto({ type: 'spec-unhighlight' }); }
+</script>
+</body>
+</html>
