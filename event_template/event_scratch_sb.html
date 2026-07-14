@@ -187,6 +187,31 @@
 
   /* 구분선 */
   hr.sep { border: none; border-top: 0.5px solid var(--divider); margin: 10px 0; }
+
+  /* 패널 토글 버튼 */
+  .panel-toggle-btn {
+    display: flex; align-items: center; gap: 4px;
+    padding: 4px 10px; font-size: 11px; font-weight: 500;
+    color: var(--info-text); background: var(--info-bg);
+    border: 0.5px solid var(--info-border); border-radius: var(--radius-pill);
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    font-family: 'Pretendard', system-ui, sans-serif;
+    transition: opacity 0.1s;
+  }
+  .panel-toggle-btn:hover { opacity: 0.8; }
+  .panel-toggle-btn .toggle-arrow {
+    display: inline-block; transition: transform 0.2s; font-size: 10px;
+  }
+  .layout.panel-hidden .panel-toggle-btn .toggle-arrow { transform: rotate(180deg); }
+
+  /* 패널 숨김 상태 */
+  .layout.panel-hidden {
+    grid-template-columns: 1fr 0;
+  }
+  .layout.panel-hidden .desc-panel {
+    padding: 0; overflow: hidden; border-left: none;
+    min-width: 0;
+  }
 </style>
 </head>
 <body>
@@ -207,6 +232,9 @@
     <div class="screen-panel-header">
       <span class="screen-panel-title">이벤트 템플릿 &gt; 스크래치 이벤트 (복권 긁기) — 인터랙티브 목업</span>
       <span class="screen-panel-hint">우측 기능 ID 클릭 시 해당 요소 강조 / 팝업 오픈</span>
+      <button class="panel-toggle-btn" id="panelToggleBtn" onclick="togglePanel()">
+        기능 설명 ON <span class="toggle-arrow">‹</span>
+      </button>
     </div>
     <div class="proto-frame">
       <iframe id="protoFrame"
@@ -591,6 +619,13 @@ function activate(id) {
 
 function spot(id) { syncIframe(id, true); }
 function unspot() { postToProto({ type: 'spec-unhighlight' }); }
+
+function togglePanel() {
+  var layout = document.querySelector('.layout');
+  var btn = document.getElementById('panelToggleBtn');
+  var hidden = layout.classList.toggle('panel-hidden');
+  btn.innerHTML = (hidden ? '기능 설명 OFF ' : '기능 설명 ON ') + '<span class="toggle-arrow">‹</span>';
+}
 </script>
 </body>
 </html>
